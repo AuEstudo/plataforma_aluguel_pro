@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}{{ predio.nome }}{% endblock title %}
+
+{% block content %}
+<div class="mb-4">
+    <h1>{{ predio.nome }}</h1>
+    <p class="lead">{{ predio.endereco_completo }}</p>
+    <p class="text-muted">{{ predio.cidade }}, {{ predio.estado }} - CEP: {{ predio.cep }}</p>
+</div>
+
+<h2 class="mb-3">Unidades Disponíveis</h2>
+<div class="row">
+    {% for apartamento in predio.apartamentos.all %}
+        {% if apartamento.disponivel %}
+        <div class="col-md-4 mb-4">
+            <div class="card h-100">
+                {% if apartamento.foto_principal %}
+                <img src="{{ apartamento.foto_principal.url }}" class="card-img-top" alt="{{ apartamento.titulo }}">
+                {% endif %}
+                <div class="card-body">
+                    <h5 class="card-title">{{ apartamento.titulo }}</h5>
+                    <p class="card-text">
+                        <strong>R$ {{ apartamento.preco_diaria|floatformat:2 }}</strong> / diária
+                    </p>
+                    <a href="{% url 'apartamentos:detalhe_apartamento' pk=apartamento.pk %}" class="btn btn-primary">Ver Detalhes da Unidade</a>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% empty %}
+        <p>Nenhuma unidade cadastrada para este prédio.</p>
+    {% endfor %}
+</div>
+{% endblock content %}
