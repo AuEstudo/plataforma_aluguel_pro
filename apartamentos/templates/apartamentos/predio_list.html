@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Nossos Prédios e Condomínios{% endblock title %}
+
+{% block content %}
+<h1 class="mb-4">Nossos Prédios e Condomínios</h1>
+<div class="row">
+    {% for predio in predios %}
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title">{{ predio.nome }}</h5>
+                <h6 class="card-subtitle mb-2 text-muted">{{ predio.cidade }}, {{ predio.estado }}</h6>
+                <a href="{% url 'apartamentos:detalhe_predio' pk=predio.pk %}" class="btn btn-secondary">Ver Unidades</a>
+            </div>
+        </div>
+    </div>
+    {% empty %}
+    <p>Nenhum prédio cadastrado no momento.</p>
+    {% endfor %}
+</div>
+{% endblock content %}

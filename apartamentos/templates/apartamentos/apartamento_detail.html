@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ apartamento.titulo }}{% endblock title %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <h1>{{ apartamento.titulo }}</h1>
+        <p class="lead">{{ apartamento.predio.cidade }}, {{ apartamento.predio.estado }}, {{ apartamento.predio.endereco_completo }}</p>
+
+        {% if apartamento.foto_principal %}
+            <img src="{{ apartamento.foto_principal.url }}" class="img-fluid rounded mb-3" alt="{{ apartamento.titulo }}">
+        {% endif %}
+
+        <h3>Descrição</h3>
+        <p>{{ apartamento.descricao|linebreaks }}</p>
+
+        {% if apartamento.fotos.all %}
+            <h3 class="mt-4">Galeria de Fotos</h3>
+            <div class="row">
+                {% for foto in apartamento.fotos.all %}
+                <div class="col-md-4 mb-3">
+                    <img src="{{ foto.imagem.url }}" class="img-fluid rounded" alt="{{ foto.legenda|default:'Foto da galeria' }}">
+                </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-body">
+                <h3 class="card-title">R$ {{ apartamento.preco_diaria|floatformat:2 }} <span class="fs-6 text-muted">/ diária</span></h3>
+                <hr>
+                <h4>Detalhes do Imóvel</h4>
+                <ul>
+                    <li><strong>Quartos:</strong> {{ apartamento.numero_quartos }}</li>
+                    <li><strong>Banheiros:</strong> {{ apartamento.numero_banheiros }}</li>
+                    <li><strong>Area:</strong> {{ apartamento.area_m2 }} m²</li>
+                    <li><strong>Proprietário:</strong> {{ apartamento.proprietario.get_full_name|default:apartamento.proprietario.username }}</li>
+                </ul>
+
+                {% if apartamento.comodidades.all %}
+                <h4>Comodidades</h4>
+                    <ul>
+                    {% for comodidade in apartamento.comodidades.all %}
+                        <li>{{ comodidade.nome }}</li>
+                    {% endfor %}
+                    </ul>
+                {% endif %}
+
+                <div class="d-grid">
+                    <a href="#" class="btn btn-success btn-lg">Reservar Agora</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock content %}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Meu Perfil{% endblock title %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-4 text-center">
+        {% if usuario.perfil.foto_perfil %}
+            <img src="{{ usuario.perfil.foto_perfil.url }}" class="img-fluid rounded-circle mb-3" alt="Foto de Perfil de {{ usuario.username }}" style="width: 200px; height: 200px; object-fit: cover;">
+        {% else %}
+            <img src="{% static 'images/default_avatar.png' %}" class="img-fluid rounded-circle mb-3" alt="Avatar padrão" style="width: 200px;">
+            {% endif %}
+        <h3>{{ usuario.first_name }} {{ usuario.last_name }}</h3>
+        <p class="text-muted">@{{ usuario.username }}</p>
+    </div>
+    <div class="col-md-8">
+        <h2>Detalhes do Perfil</h2>
+        <hr>
+        <p><strong>Email:</strong> {{ usuario.email }}</p>
+        <p><strong>Telefone:</strong> {{ usuario.perfil.telefone|default:"Não informado" }}</p>
+        <h4>Biografia</h4>
+        <p>{{ usuario.perfil.bio|linebreaks|default:"Nenhuma biografia adicionada." }}</p>
+
+        <a href="#" class="btn btn-primary">Editar Perfil</a>
+    </div>
+</div>
+{% endblock content %}
