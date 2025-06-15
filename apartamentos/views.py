@@ -1,11 +1,13 @@
 # apartamentos/views.py
-from django.views.generic import ListView, DetailView, CreateView, UpdateView
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse_lazy
 from .models import Apartamento, Predio
-from .forms import CustomUserCreationForm, PredioForm, ApartamentoForm
-from django.shortcuts import render, get_object_or_404
+from .forms import CustomUserCreationForm, PredioForm, ApartamentoForm, UserUpdateForm, PerfilUpdateForm
+from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
+
 
 class PredioListView(ListView):
     """ View para listar todos os prédios/condomínios. """
@@ -55,16 +57,6 @@ class SignUpView(CreateView):
     success_url = reverse_lazy('login')
     template_name = 'registration/signup.html'
 
-# Página de Perfil do Usuário
-@login_required # Este decorator garante que apenas usuários logados acessem esta view
-def perfil_view(request):
-    # O objeto do usuário logado já está disponível em 'request.user'
-    # O perfil relacionado é acessado via 'request.user.perfil'
-    template_name = 'apartamentos/perfil.html'
-    context = {
-        'usuario': request.user
-    }
-    return render(request, template_name, context)
 
 # Painel "Meus Anúncios"
 class MeusAnunciosListView(LoginRequiredMixin, ListView):
@@ -127,3 +119,44 @@ class ApartamentoUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView)
     def get_success_url(self):
         # Redireciona para a página de detalhes do apartamento após a edição
         return reverse_lazy('apartamentos:detalhe_apartamento', kwargs={'pk': self.object.pk})
+
+# Deletar um Apartamento
+class ApartamentoDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    model = Apartamento
+    template_name = 'apartamentos/apartamento_confirm_delete.html'
+    context_object_name = 'apartamento'
+    success_url = reverse_lazy('apartamentos:meus_anuncios')
+
+    def test_func(self):
+        # A mesma regra de permissão da edição
+        apartamento = self.get_object()
+        return self.request.user == apartamento.proprietario
+
+    def form_valid(self, form):
+        # Adiciona uma mensagem de sucesso antes de deletar
+        messages.success(self.request, f"O anúncio '{self.object.titulo}' foi excluído com sucesso.")
+        return super().form_valid(form)
+
+# Página de Perfil do Usuário
+@login_required
+def perfil_view(request):
+    if request.method == 'POST':
+        # Se o formulário foi enviado, instancia os dois forms com os dados do POST
+        user_form = UserUpdateForm(request.POST, instance=request.user)
+        perfil_form = PerfilUpdateForm(request.POST, request.FILES, instance=request.user.perfil)
+
+        if user_form.is_valid() and perfil_form.is_valid():
+            user_form.save()
+            perfil_form.save()
+            messages.success(request, 'Seu perfil foi atualizado com sucesso!')
+            return redirect('apartamentos:perfil')
+    else:
+        # Se for um GET, apenas mostra os formulários com os dados atuais
+        user_form = UserUpdateForm(instance=request.user)
+        perfil_form = PerfilUpdateForm(instance=request.user.perfil)
+
+    context = {
+        'user_form': user_form,
+        'perfil_form': perfil_form
+    }
+    return render(request, 'apartamentos/perfil_edit.html', context)

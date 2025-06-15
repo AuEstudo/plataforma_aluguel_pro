@@ -1,8 +1,8 @@
 # apartamentos/forms.py
 from django import forms
-from django.contrib.auth.forms import UserCreationForm
+from django.contrib.auth.forms import UserCreationForm, UserChangeForm
 from django.contrib.auth.models import User
-from .models import Predio, Apartamento
+from .models import Predio, Apartamento, Perfil
 
 class CustomUserCreationForm(UserCreationForm):
     class Meta(UserCreationForm.Meta):
@@ -45,4 +45,28 @@ class ApartamentoForm(forms.ModelForm):
             'foto_principal': forms.FileInput(attrs={'class': 'form-control'}),
             'disponivel': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'comodidades': forms.SelectMultiple(attrs={'class': 'form-select', 'size': 5}),
+        }
+
+# Formulário para editar dados do User (nome, email)
+class UserUpdateForm(forms.ModelForm):
+    email = forms.EmailField()
+
+    class Meta:
+        model = User
+        fields = ['first_name', 'last_name', 'email']
+        widgets = {  # Adicionando classes para estilização
+            'first_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'last_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+        }
+
+# Formulário para editar dados do Perfil (foto, telefone, bio)
+class PerfilUpdateForm(forms.ModelForm):
+    class Meta:
+        model = Perfil
+        fields = ['foto_perfil', 'telefone', 'bio']
+        widgets = {
+            'foto_perfil': forms.FileInput(attrs={'class': 'form-control'}),
+            'telefone': forms.TextInput(attrs={'class': 'form-control'}),
+            'bio': forms.Textarea(attrs={'class': 'form-control', 'rows': 4}),
         }
