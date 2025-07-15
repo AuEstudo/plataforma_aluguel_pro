@@ -1,38 +1,31 @@
-# apartamentos/urls.py
 from django.urls import path
 from .views import (
-    ApartamentoListView,
-    ApartamentoDetailView,
-    PredioListView,
-    PredioDetailView,
-    SignUpView,
-    perfil_view,
-    MeusAnunciosListView,
-    PredioCreateView,
-    ApartamentoCreateView,
-    ApartamentoUpdateView,
-    ApartamentoDeleteView
+    ApartamentoListView, ApartamentoDetailView, PredioListView, PredioDetailView,
+    SignUpView, perfil_view, PainelProprietarioView, MinhasReservasListView,
+    PredioCreateView, ApartamentoCreateView, ApartamentoUpdateView, ApartamentoDeleteView,
+    aprovar_reserva, recusar_reserva, ReservaDetailView,
 )
 
 app_name = 'apartamentos'
 
 urlpatterns = [
-    # URLs de Prédios
+    path('', ApartamentoListView.as_view(), name='lista_apartamentos'),
     path('predios/', PredioListView.as_view(), name='lista_predios'),
     path('predios/<int:pk>/', PredioDetailView.as_view(), name='detalhe_predio'),
-    path('meus-anuncios/', MeusAnunciosListView.as_view(), name='meus_anuncios'),
+    path('apartamento/<int:pk>/', ApartamentoDetailView.as_view(), name='detalhe_apartamento'),
+
+    path('signup/', SignUpView.as_view(), name='signup'),
+    path('meu-perfil/', perfil_view, name='perfil_edit'),
+
+    path('painel/', PainelProprietarioView.as_view(), name='painel_proprietario'),
+    path('minhas-reservas/', MinhasReservasListView.as_view(), name='minhas_reservas'),
+
     path('predio/novo/', PredioCreateView.as_view(), name='predio_create'),
     path('predio/<int:pk_predio>/apartamento/novo/', ApartamentoCreateView.as_view(), name='apartamento_create'),
     path('apartamento/<int:pk>/editar/', ApartamentoUpdateView.as_view(), name='apartamento_update'),
     path('apartamento/<int:pk>/deletar/', ApartamentoDeleteView.as_view(), name='apartamento_delete'),
-    path('', ApartamentoListView.as_view(), name='lista_apartamentos'),
-    path('<int:pk>/', ApartamentoDetailView.as_view(), name='detalhe_apartamento'),
-    path('signup', SignUpView.as_view(), name='signup'),
-    # URL de Perfil - vamos ter uma para ver e outra para editar
-    # Vamos manter a antiga por enquanto, mas apontando para uma nova view de detalhe se necessário,
-    # ou podemos simplesmente ter uma única página de edição como "página de perfil".
-    # Vamos simplificar e ter a página /meu-perfil/ como a página de EDIÇÃO.
-    path('meu-perfil/', perfil_view, name='perfil_edit'),
-    path('meu-perfil/', perfil_view, name='perfil'),
 
+    path('reserva/<int:pk>/aprovar/', aprovar_reserva, name='aprovar_reserva'),
+    path('reserva/<int:pk>/recusar/', recusar_reserva, name='recusar_reserva'),
+    path('reserva/<int:pk>/', ReservaDetailView.as_view(), name='detalhe_reserva'),
 ]

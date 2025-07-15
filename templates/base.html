@@ -4,79 +4,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>{% block title %}Plataforma de Aluguel PRO{% endblock title %}</title>
-
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-
-    </head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
 <body>
-
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-4" style="position: relative; z-index: 1050;">
         <div class="container">
-            <a class="navbar-brand" href="{% url 'apartamentos:lista_apartamentos' %}">Plataforma Aluguel PRO</a>
-
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-
+            <a class="navbar-brand" href="{% url 'homepage' %}">Plataforma Aluguel PRO</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation"><span class="navbar-toggler-icon"></span></button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'apartamentos:lista_predios' %}">Prédios</a>
-                    </li>
-                    </ul>
-
+                    <li class="nav-item"><a class="nav-link" href="{% url 'apartamentos:lista_apartamentos' %}">Apartamentos</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'apartamentos:lista_predios' %}">Prédios</a></li>
+                </ul>
                 <ul class="navbar-nav">
                     {% if user.is_authenticated %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                Olá, {{ user.first_name|default:user.username }}
-                            </a>
-                            <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
-                                <li><a class="dropdown-item" href="{% url 'apartamentos:perfil_edit' %}">Meu Perfil</a></li>
-                                <li><a class="dropdown-item" href="{% url 'apartamentos:meus_anuncios' %}">Meus Anúncios</a></li>
-                                <li><hr class="dropdown-divider"></li>
-                                <li>
-                                    <form class="d-inline" action="{% url 'logout' %}" method="post">
-                                        {% csrf_token %}
-                                        <button type="submit" class="dropdown-item"style="border: none; background: none; text-align: left; padding: 0.25rem 1rem;">Sair</button>
-                                    </form>
-                                </li>
-                            </ul>
-                        </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Olá, {{ user.first_name|default:user.username }}</a>
+                        <ul class="dropdown-menu dropdown-menu-dark dropdown-menu-end">
+                            <li><a class="dropdown-item" href="{% url 'apartamentos:perfil_edit' %}">Meu Perfil</a></li>
+                            {% if perms.apartamentos.add_apartamento %}<li><a class="dropdown-item" href="{% url 'apartamentos:painel_proprietario' %}">Meu Painel</a></li>{% endif %}
+                            {% if perms.apartamentos.add_reserva %}<li><a class="dropdown-item" href="{% url 'apartamentos:minhas_reservas' %}">Minhas Reservas</a></li>{% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li><form class="d-inline" action="{% url 'logout' %}" method="post">{% csrf_token %}<button type="submit" class="dropdown-item" style="border: none; background: none; text-align: left; padding: 0.25rem 1rem;">Sair</button></form></li>
+                        </ul>
+                    </li>
                     {% else %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'login' %}">Entrar</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link btn btn-primary text-white" href="{% url 'apartamentos:signup' %}">Cadastre-se</a>
-                        </li>
+                    <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Entrar</a></li>
+                    <li class="nav-item"><a class="nav-link btn btn-primary text-white" href="{% url 'apartamentos:signup' %}">Cadastre-se</a></li>
                     {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
-
     <main class="container">
-        {% if messages %}
-            {% for message in messages %}
-                <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            {% endfor %}
-        {% endif %}
-
-        {% block content %}
-        {% endblock content %}
+        {% if messages %}{% for message in messages %}<div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">{{ message }}<button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button></div>{% endfor %}{% endif %}
+        {% block content %}{% endblock content %}
     </main>
-
-    <footer class="mt-5 py-4 text-center text-muted border-top">
-        <p>&copy; {% now "Y" %} Plataforma de Aluguel PRO. Todos os direitos reservados.</p>
-    </footer>
-
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-
+    <footer class="mt-5 py-4 text-center text-muted border-top"><p>&copy; {% now "Y" %} Plataforma de Aluguel PRO. Todos os direitos reservados.</p></footer>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    {% block scripts %}{% endblock scripts %}
 </body>
 </html>

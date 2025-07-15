@@ -1,0 +1,57 @@
+# Ambientes Virtuais
+venv/
+venv_aluguel/
+.venv/
+env/
+ENV/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Arquivos de Banco de Dados SQLite
+*.sqlite3
+db.sqlite3
+db.sqlite3-journal
+
+# Django stuff
+*.log
+local_settings.py
+staticfiles_build/
+media/
+mediafiles/
+
+# IDEs e editores
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# dotenv
+.env
+
+# System files
+.DS_Store
+Thumbs.db
+
+GEMINI_API_KEY=SUA_CHAVE_DE_API_AQUI

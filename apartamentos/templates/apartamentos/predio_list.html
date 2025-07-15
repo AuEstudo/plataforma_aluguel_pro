@@ -1,21 +1,102 @@
 {% extends 'base.html' %}
+{% load static %}
+
 {% block title %}Nossos Prédios e Condomínios{% endblock title %}
 
 {% block content %}
-<h1 class="mb-4">Nossos Prédios e Condomínios</h1>
-<div class="row">
-    {% for predio in predios %}
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-body">
-                <h5 class="card-title">{{ predio.nome }}</h5>
-                <h6 class="card-subtitle mb-2 text-muted">{{ predio.cidade }}, {{ predio.estado }}</h6>
-                <a href="{% url 'apartamentos:detalhe_predio' pk=predio.pk %}" class="btn btn-secondary">Ver Unidades</a>
+<div class="container">
+    <h1 class="mb-4">Nossos Prédios e Condomínios</h1>
+
+    <div class="row" id="predio-list-container">
+        {% for predio in predios %}
+            <div class="col-md-6 mb-4 predio-card">
+                <div class="card h-100 shadow-sm">
+                    <div class="row g-0">
+                        <div class="col-md-4">
+                            {% if predio.foto_fachada %}
+                                <img src="{{ predio.foto_fachada.url }}" class="img-fluid rounded-start" alt="Fachada de {{ predio.nome }}" style="height: 100%; object-fit: cover;">
+                            {% else %}
+                                <img src="{% static 'images/placeholder.png' %}" class="img-fluid rounded-start" alt="Sem foto" style="height: 100%; object-fit: cover;">
+                            {% endif %}
+                        </div>
+                        <div class="col-md-8">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ predio.nome }}</h5>
+                                <p class="card-text"><small class="text-muted">{{ predio.endereco_completo }}, {{ predio.cidade }} - {{ predio.estado }}</small></p>
+                                <a href="{% url 'apartamentos:detalhe_predio' pk=predio.pk %}" class="btn btn-primary">Ver Unidades</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% empty %}
+            <div class="col-12">
+                <p>Nenhum prédio cadastrado ainda.</p>
+            </div>
+        {% endfor %}
+    </div>
+
+    {% if page_obj.has_next %}
+        <div id="sentinela" class="text-center p-4">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Carregando mais...</span>
             </div>
         </div>
-    </div>
-    {% empty %}
-    <p>Nenhum prédio cadastrado no momento.</p>
-    {% endfor %}
+    {% endif %}
+
 </div>
 {% endblock content %}
+
+
+{% block scripts %}
+    {{ block.super }} <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const sentinela = document.querySelector('#sentinela');
+            if (!sentinela) {
+                return; // Para o script se não houver próxima página
+            }
+
+            let nextPage = {{ page_obj.next_page_number|default:0 }};
+            let isLoading = false;
+            const totalPages = {{ page_obj.paginator.num_pages|default:1 }};
+
+            const observer = new IntersectionObserver(entries => {
+                if (entries[0].isIntersecting && nextPage > 0 && nextPage <= totalPages && !isLoading) {
+                    isLoading = true;
+
+                    // Busca a próxima página da URL atual
+                    fetch(`?page=${nextPage}`)
+                        .then(response => response.text())
+                        .then(html => {
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, 'text/html');
+
+                            // Encontra os novos cards de prédio na resposta
+                            const novosPredios = doc.querySelectorAll('.predio-card');
+                            // Pega o container principal
+                            const container = document.querySelector('#predio-list-container');
+
+                            // Adiciona os novos prédios ao final da lista
+                            novosPredios.forEach(predio => {
+                                container.appendChild(predio);
+                            });
+
+                            // Se a próxima página carregada for a última, removemos a sentinela
+                            if (nextPage >= totalPages) {
+                                sentinela.remove();
+                                nextPage = 0;
+                            } else {
+                                nextPage++;
+                            }
+                            isLoading = false;
+                        }).catch(error => {
+                            console.error('Erro ao carregar mais prédios:', error);
+                            isLoading = false;
+                        });
+                }
+            }, { threshold: 1.0 });
+
+            observer.observe(sentinela);
+        });
+    </script>
+{% endblock scripts %}
