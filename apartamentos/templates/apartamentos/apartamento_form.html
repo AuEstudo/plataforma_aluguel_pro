@@ -20,6 +20,24 @@
         {% csrf_token %}
         {{ form.as_p }}
         <button type="submit" class="btn btn-success">Salvar Apartamento</button>
+        <hr>
+        <h4 class="mt-4 mb-3">Fotos do Apartamento</h4>
+
+        {{ formset.management_form }}
+        {% for form_foto in formset %}
+            <div class="row align-items-center mb-3 border-bottom pb-3">
+                <div class="col-md-8">
+                    {{ form_foto.as_p }}
+                </div>
+                {% if form_foto.instance.pk and form_foto.instance.imagem %}
+                <div class="col-md-4">
+                    <img src="{{ form_foto.instance.imagem.url }}" alt="Foto" class="img-thumbnail" width="150">
+                </div>
+                {% endif %}
+            </div>
+        {% endfor %}
+
+        <button type="submit" class="btn btn-primary mt-3">Salvar Alterações</button>
     </form>
 </div>
 {% endblock content %}

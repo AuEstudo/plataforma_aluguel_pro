@@ -1,0 +1,55 @@
+{% extends 'base.html' %}
+
+{% block title %}Minhas Reservas{% endblock title %}
+
+{% block content %}
+<h1 class="mb-4">Minhas Reservas</h1>
+
+{% for reserva in reservas %}
+    <div class="card mb-3 shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center bg-light">
+            <div>
+                <span>Reserva em <strong>{{ reserva.apartamento.predio.nome }} - {{ reserva.apartamento.titulo }}</strong></span>
+            </div>
+
+            {% if reserva.status == 'PENDENTE' %}
+                <span class="badge bg-warning text-dark">{{ reserva.get_status_display }}</span>
+            {% elif reserva.status == 'CONFIRMADA' %}
+                <span class="badge bg-success">{{ reserva.get_status_display }}</span>
+            {% else %}
+                <span class="badge bg-secondary">{{ reserva.get_status_display }}</span>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            <p><strong>Check-in:</strong> {{ reserva.data_checkin|date:"d/m/Y" }}</p>
+            <p><strong>Check-out:</strong> {{ reserva.data_checkout|date:"d/m/Y" }}</p>
+            <a href="{% url 'apartamentos:detalhe_reserva' pk=reserva.pk %}" class="btn btn-primary btn-sm">Ver Detalhes</a>
+        </div>
+        <div class="card-footer text-muted">
+            Solicitada em: {{ reserva.data_reserva|date:"d/m/Y" }} às {{ reserva.data_reserva|time:"H:i" }}
+        </div>
+    </div>
+{% empty %}
+    <div class="text-center p-5 border rounded">
+        <h4>Você ainda não fez nenhuma reserva.</h4>
+        <p>Explore nossos <a href="{% url 'apartamentos:lista_apartamentos' %}">apartamentos</a> e encontre seu próximo destino!</p>
+    </div>
+{% endfor %}
+
+{% if is_paginated %}
+    <nav aria-label="Navegação das reservas">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a></li>
+            {% endif %}
+
+            <li class="page-item disabled"><span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
+
+            {% if page_obj.has_next %}
+                <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">Próxima</a></li>
+            {% endif %}
+        </ul>
+    </nav>
+{% endif %}
+
+{% endblock content %}

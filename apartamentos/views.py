@@ -1,162 +1,364 @@
-# apartamentos/views.py
-from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView
-from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
-from .models import Apartamento, Predio
-from .forms import CustomUserCreationForm, PredioForm, ApartamentoForm, UserUpdateForm, PerfilUpdateForm
-from django.shortcuts import render, get_object_or_404, redirect
+from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
+from django.views.generic.edit import FormMixin
+from django.views.decorators.http import require_POST
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.utils import timezone
+from django.db.models import Avg
+from django.forms import inlineformset_factory
+from django.core.paginator import EmptyPage
+from django.views import View
 
+from .services import aprovar_reserva_service, recusar_reserva_service
+from .filters import ApartamentoFilter
+from .models import Apartamento, Predio, Reserva, Avaliacao, FotoApartamento
+from .forms import (
+    CustomUserCreationForm, PredioForm, ApartamentoForm,
+    UserUpdateForm, PerfilUpdateForm, ReservaForm, ApartamentoSearchForm,
+    AvaliacaoForm
+)
+
+
+class HomePageView(TemplateView):
+    template_name = 'homepage.html'
+
+
+class SignUpView(CreateView):
+    form_class = CustomUserCreationForm
+    success_url = reverse_lazy('login')
+    template_name = 'registration/signup.html'
+
+
+@login_required
+def perfil_view(request):
+    if request.method == 'POST':
+        user_form = UserUpdateForm(request.POST, instance=request.user)
+        perfil_form = PerfilUpdateForm(request.POST, request.FILES, instance=request.user.perfil)
+        if user_form.is_valid() and perfil_form.is_valid():
+            user_form.save()
+            perfil_form.save()
+            messages.success(request, 'Seu perfil foi atualizado com sucesso!')
+            return redirect('apartamentos:perfil_edit')
+    else:
+        user_form = UserUpdateForm(instance=request.user)
+        perfil_form = PerfilUpdateForm(instance=request.user.perfil)
+    context = {'user_form': user_form, 'perfil_form': perfil_form}
+    return render(request, 'apartamentos/perfil_edit.html', context)
+
+class ApartamentoListView(View):
+    template_name = 'apartamentos/apartamento_list.html'
+
+    def get(self, request, *args, **kwargs):
+        # 1. A consulta base continua a mesma
+        base_queryset = Apartamento.objects.filter(disponivel=True).select_related('predio').order_by('-data_cadastro')
+
+        # 2. A lógica de filtro com django-filter
+        filterset = ApartamentoFilter(request.GET, queryset=base_queryset)
+        queryset_filtrado = filterset.qs
+
+        # 3. A lógica de filtro por data
+        data_checkin_str = request.GET.get('data_checkin', '')
+        data_checkout_str = request.GET.get('data_checkout', '')
+
+        if data_checkin_str and data_checkout_str:
+            try:
+                data_checkin = timezone.datetime.strptime(data_checkin_str, '%Y-%m-%d').date()
+                data_checkout = timezone.datetime.strptime(data_checkout_str, '%Y-%m-%d').date()
+                status_bloqueantes = [Reserva.StatusReserva.CONFIRMADA, Reserva.StatusReserva.PENDENTE]
+                apartamentos_indisponiveis_ids = Reserva.objects.filter(
+                    status__in=status_bloqueantes,
+                    data_checkin__lte=data_checkout,
+                    data_checkout__gte=data_checkin
+                ).values_list('apartamento_id', flat=True)
+                queryset_filtrado = queryset_filtrado.exclude(pk__in=apartamentos_indisponiveis_ids)
+            except ValueError:
+                pass
+
+        # 4. APLICANDO O .distinct() NO FINAL DE TODAS AS OPERAÇÕES
+        final_queryset = queryset_filtrado.distinct()
+
+        # 5. LÓGICA DE PAGINAÇÃO MANUAL E SEGURA
+        paginator = Paginator(final_queryset, 9)  # 9 itens por página
+        page_number = request.GET.get('page')
+        try:
+            page_obj = paginator.page(page_number)
+        except PageNotAnInteger:
+            page_obj = paginator.page(1)
+        except EmptyPage:
+            page_obj = paginator.page(1)  # Sempre volte para a página 1 em caso de erro
+
+        # 6. CONSTRUÇÃO MANUAL DO CONTEXTO
+        context = {
+            'apartamentos': page_obj.object_list,
+            'page_obj': page_obj,
+            'is_paginated': page_obj.has_other_pages(),
+            'filter': filterset,
+            'cidades_disponiveis': Predio.objects.order_by('cidade').values_list('cidade', flat=True).distinct(),
+            'is_search': bool(request.GET)
+        }
+
+        return render(request, self.template_name, context)
 
 class PredioListView(ListView):
-    """ View para listar todos os prédios/condomínios. """
     model = Predio
     template_name = 'apartamentos/predio_list.html'
     context_object_name = 'predios'
     paginate_by = 10
 
+
 class PredioDetailView(DetailView):
-    """ View para exibir os detalhes de um prédio e seus apartamentos. """
     model = Predio
     template_name = 'apartamentos/predio_detail.html'
     context_object_name = 'predio'
 
     def get_queryset(self):
-        # Otimização: pré-carrega os apartamentos e suas respectivas fotos principais e proprietários
-        return super().get_queryset().prefetch_related(
-            'apartamentos__foto_principal',
-            'apartamentos__proprietario'
-        )
+        return super().get_queryset().prefetch_related('apartamentos__proprietario')
 
-class ApartamentoListView(ListView):
-    """ View para listar todos os apartamentos de todos os prédios. """
-    model = Apartamento
-    template_name = 'apartamentos/apartamento_list.html'
-    context_object_name = 'apartamentos'
-    paginate_by = 9
 
-    def get_queryset(self):
-        # Otimização: agora precisamos também dos dados do prédio
-        return super().get_queryset().filter(disponivel=True).select_related('predio', 'proprietario')
-
-class ApartamentoDetailView(DetailView):
-    """ View para exibir os detalhes de um único apartamento. """
+class ApartamentoDetailView(FormMixin, DetailView):
     model = Apartamento
     template_name = 'apartamentos/apartamento_detail.html'
     context_object_name = 'apartamento'
+    form_class = ReservaForm
+
+    def get_success_url(self):
+        return reverse_lazy('apartamentos:minhas_reservas')
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['form'] = self.get_form()
+        status_bloqueantes = [Reserva.StatusReserva.CONFIRMADA, Reserva.StatusReserva.PENDENTE]
+        context['datas_ocupadas'] = self.object.reservas.filter(status__in=status_bloqueantes).order_by('data_checkin')
+
+        # Lógica para buscar e exibir avaliações
+        apartamento = self.get_object()
+        avaliacoes = Avaliacao.objects.filter(reserva__apartamento=apartamento).order_by('-data_avaliacao')
+        nota_media = avaliacoes.aggregate(Avg('nota'))['nota__avg']
+        context['avaliacoes'] = avaliacoes
+        context['nota_media'] = nota_media
+        return context
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['apartamento'] = self.get_object()
+        return kwargs
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = self.get_form()
+        if form.is_valid():
+            return self.form_valid(form)
+        else:
+            return self.form_invalid(form)
+
+    def form_valid(self, form):
+        reserva = form.save(commit=False)
+        reserva.apartamento = self.object
+        reserva.hospede = self.request.user
+        reserva.save()
+        messages.success(self.request, "Sua solicitação de reserva foi enviada com sucesso!")
+        return super().form_valid(form)
 
     def get_queryset(self):
-        # Otimização: prédio, proprietário, fotos e comodidades
         return super().get_queryset().select_related('predio', 'proprietario').prefetch_related('fotos', 'comodidades')
 
-class SignUpView(CreateView):
-    form_class = CustomUserCreationForm
-    # reverse_lazy() é usado aqui porque as URLs só são carregadas quando o
-    # servidor está rodando, e não quando o arquivo é importado.
-    success_url = reverse_lazy('login')
-    template_name = 'registration/signup.html'
 
+class ReservaDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
+    model = Reserva
+    template_name = 'apartamentos/reserva_detail.html'
+    context_object_name = 'reserva'
 
-# Painel "Meus Anúncios"
-class MeusAnunciosListView(LoginRequiredMixin, ListView):
-    model = Apartamento
-    template_name = 'apartamentos/meus_anuncios.html'
-    context_object_name = 'apartamentos'
+    def test_func(self):
+        reserva = self.get_object()
+        return self.request.user == reserva.hospede or self.request.user == reserva.apartamento.proprietario
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        reserva = self.get_object()
+        pode_avaliar = (
+                reserva.status == Reserva.StatusReserva.CONFIRMADA and
+                reserva.data_checkout < timezone.localdate() and
+                self.request.user == reserva.hospede and
+                not hasattr(reserva, 'avaliacao')
+        )
+        if pode_avaliar:
+            context['form_avaliacao'] = AvaliacaoForm()
+        return context
+
+    def post(self, request, *args, **kwargs):
+        reserva = self.get_object()
+        # Apenas hóspedes podem postar avaliações
+        if self.request.user != reserva.hospede:
+            messages.error(request, "Você não tem permissão para avaliar esta reserva.")
+            return redirect('apartamentos:detalhe_reserva', pk=reserva.pk)
+
+        form = AvaliacaoForm(request.POST)
+        if form.is_valid():
+            avaliacao = form.save(commit=False)
+            avaliacao.reserva = reserva
+            avaliacao.save()
+            messages.success(request, 'Sua avaliação foi enviada com sucesso. Obrigado!')
+            return redirect('apartamentos:detalhe_reserva', pk=reserva.pk)
+
+        context = self.get_context_data()
+        context['form_avaliacao'] = form
+        return self.render_to_response(context)
 
     def get_queryset(self):
-        # Filtra os apartamentos para mostrar apenas os que pertencem ao usuário logado
-        return Apartamento.objects.filter(proprietario=self.request.user).order_by('-data_cadastro')
+        return super().get_queryset().select_related('hospede__perfil', 'apartamento__predio',
+                                                     'apartamento__proprietario__perfil')
 
-# Criar um novo Prédio
-class PredioCreateView(LoginRequiredMixin, CreateView):
+
+class PainelProprietarioView(PermissionRequiredMixin, TemplateView):
+    template_name = 'apartamentos/painel_proprietario.html'
+    permission_required = 'apartamentos.add_apartamento'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        user = self.request.user
+        context['predios'] = Predio.objects.filter(proprietario=user).prefetch_related('apartamentos')
+        reservas = Reserva.objects.filter(apartamento__proprietario=user).select_related('hospede',
+                                                                                         'apartamento').order_by(
+            '-data_checkin')
+        context['reservas_pendentes'] = reservas.filter(status=Reserva.StatusReserva.PENDENTE)
+        context['reservas_confirmadas'] = reservas.filter(status=Reserva.StatusReserva.CONFIRMADA)
+        context['historico_reservas'] = reservas.filter(status__in=[Reserva.StatusReserva.CANCELADA])
+        context['titulo_pagina'] = "Painel do Proprietário"
+        return context
+
+
+class MinhasReservasListView(LoginRequiredMixin, ListView):
+    model = Reserva
+    template_name = 'apartamentos/minhas_reservas.html'
+    context_object_name = 'reservas'
+    paginate_by = 10
+
+    def get_queryset(self):
+        return Reserva.objects.filter(hospede=self.request.user).select_related('apartamento__predio').order_by(
+            '-data_checkin')
+
+
+class PredioCreateView(PermissionRequiredMixin, CreateView):
     model = Predio
     form_class = PredioForm
     template_name = 'apartamentos/predio_form.html'
-    success_url = reverse_lazy('apartamentos:lista_predios') # Vamos ajustar isso depois
+    permission_required = 'apartamentos.add_predio'
 
     def form_valid(self, form):
-        # AQUI definimos o proprietário do prédio como o usuário logado
-        # ANTES do formulário ser salvo.
-        # form.instance.proprietario = self.request.user # Descomente quando adicionar 'proprietario' ao modelo Predio
+        form.instance.proprietario = self.request.user
+        messages.success(self.request,
+                         f"O prédio '{form.instance.nome}' foi cadastrado com sucesso! Agora adicione as unidades.")
         return super().form_valid(form)
 
-# Criar um novo Apartamento em um Prédio específico
-class ApartamentoCreateView(LoginRequiredMixin, CreateView):
+    def get_success_url(self): return reverse_lazy('apartamentos:detalhe_predio', kwargs={'pk': self.object.pk})
+
+
+class ApartamentoCreateView(PermissionRequiredMixin, CreateView):
     model = Apartamento
     form_class = ApartamentoForm
     template_name = 'apartamentos/apartamento_form.html'
+    permission_required = 'apartamentos.add_apartamento'
 
     def get_context_data(self, **kwargs):
-        # Adiciona o objeto do prédio ao contexto do template
         context = super().get_context_data(**kwargs)
         context['predio'] = get_object_or_404(Predio, pk=self.kwargs['pk_predio'])
         return context
 
     def form_valid(self, form):
-        # Pega o prédio da URL
         predio = get_object_or_404(Predio, pk=self.kwargs['pk_predio'])
-        # Associa o apartamento a esse prédio e ao usuário logado
         form.instance.predio = predio
         form.instance.proprietario = self.request.user
         return super().form_valid(form)
 
-    def get_success_url(self):
-        # Redireciona para a página de detalhes do prédio após criar o apartamento
-        return reverse_lazy('apartamentos:detalhe_predio', kwargs={'pk': self.kwargs['pk_predio']})
+    def get_success_url(self): return reverse_lazy('apartamentos:detalhe_predio',
+                                                   kwargs={'pk': self.kwargs['pk_predio']})
 
-# Editar um Apartamento existente
-class ApartamentoUpdateView(LoginRequiredMixin, UserPassesTestMixin, UpdateView):
+
+class ApartamentoUpdateView(PermissionRequiredMixin, UserPassesTestMixin, UpdateView):
     model = Apartamento
     form_class = ApartamentoForm
     template_name = 'apartamentos/apartamento_form.html'
+    permission_required = 'apartamentos.change_apartamento'
 
-    def test_func(self):
-        # Lógica de permissão: o usuário logado deve ser o proprietário do apartamento
-        apartamento = self.get_object()
-        return self.request.user == apartamento.proprietario
+    def test_func(self): return self.request.user == self.get_object().proprietario
 
-    def get_success_url(self):
-        # Redireciona para a página de detalhes do apartamento após a edição
-        return reverse_lazy('apartamentos:detalhe_apartamento', kwargs={'pk': self.object.pk})
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        # Cria a fábrica de formsets para o modelo FotoApartamento
+        FotoFormSet = inlineformset_factory(
+            Apartamento,
+            FotoApartamento,
+            fields=('imagem', 'principal'),
+            extra=3, # Mostra 3 formulários extras para novas fotos
+            can_delete=True # Permite deletar fotos existentes
+        )
+        if self.request.POST:
+            context['formset'] = FotoFormSet(self.request.POST, self.request.FILES, instance=self.object)
+        else:
+            context['formset'] = FotoFormSet(instance=self.object)
+        return context
 
-# Deletar um Apartamento
-class ApartamentoDeleteView(LoginRequiredMixin, UserPassesTestMixin, DeleteView):
+    def form_valid(self, form):
+        context = self.get_context_data()
+        formset = context['formset']
+        if form.is_valid() and formset.is_valid():
+            self.object = form.save()
+            formset.instance = self.object
+            formset.save()
+            messages.success(self.request, "Apartamento atualizado com sucesso!")
+            return redirect(self.get_success_url())
+        else:
+            return self.render_to_response(self.get_context_data(form=form))
+
+    def get_success_url(self): return reverse_lazy('apartamentos:detalhe_apartamento', kwargs={'pk': self.object.pk})
+
+
+class ApartamentoDeleteView(PermissionRequiredMixin, UserPassesTestMixin, DeleteView):
     model = Apartamento
     template_name = 'apartamentos/apartamento_confirm_delete.html'
     context_object_name = 'apartamento'
-    success_url = reverse_lazy('apartamentos:meus_anuncios')
+    permission_required = 'apartamentos.delete_apartamento'
 
-    def test_func(self):
-        # A mesma regra de permissão da edição
-        apartamento = self.get_object()
-        return self.request.user == apartamento.proprietario
+    def test_func(self): return self.request.user == self.get_object().proprietario
+
+    def get_success_url(self): return reverse_lazy('apartamentos:painel_proprietario')
 
     def form_valid(self, form):
-        # Adiciona uma mensagem de sucesso antes de deletar
         messages.success(self.request, f"O anúncio '{self.object.titulo}' foi excluído com sucesso.")
         return super().form_valid(form)
 
-# Página de Perfil do Usuário
+
+@require_POST
 @login_required
-def perfil_view(request):
-    if request.method == 'POST':
-        # Se o formulário foi enviado, instancia os dois forms com os dados do POST
-        user_form = UserUpdateForm(request.POST, instance=request.user)
-        perfil_form = PerfilUpdateForm(request.POST, request.FILES, instance=request.user.perfil)
+def aprovar_reserva(request, pk):
+    reserva = get_object_or_404(Reserva, pk=pk)
+    try:
+        # A chamada continua a mesma, mas agora chama a função importada diretamente
+        aprovar_reserva_service(reserva=reserva, usuario=request.user)
+        messages.success(request, f'A reserva para {reserva.apartamento.titulo} foi CONFIRMADA.')
+    except PermissionError as e:
+        messages.error(request, str(e))
+    return redirect('apartamentos:painel_proprietario')
 
-        if user_form.is_valid() and perfil_form.is_valid():
-            user_form.save()
-            perfil_form.save()
-            messages.success(request, 'Seu perfil foi atualizado com sucesso!')
-            return redirect('apartamentos:perfil')
+@require_POST
+@login_required
+def recusar_reserva(request, pk):
+    reserva = get_object_or_404(Reserva, pk=pk)
+    if request.user == reserva.apartamento.proprietario:
+        reserva.status = Reserva.StatusReserva.CANCELADA
+        reserva.save()
+        messages.info(request, f'A reserva para {reserva.apartamento.titulo} foi RECUSADA.')
     else:
-        # Se for um GET, apenas mostra os formulários com os dados atuais
-        user_form = UserUpdateForm(instance=request.user)
-        perfil_form = PerfilUpdateForm(instance=request.user.perfil)
+        messages.error(request, 'Você não tem permissão para recusar esta reserva.')
 
-    context = {
-        'user_form': user_form,
-        'perfil_form': perfil_form
-    }
-    return render(request, 'apartamentos/perfil_edit.html', context)
+    try:
+        # Chamamos nosso novo serviço para recusar a reserva
+        recusar_reserva_service(reserva=reserva, usuario=request.user)
+        messages.info(request, f'A reserva para {reserva.apartamento.titulo} foi RECUSADA.')
+    except PermissionError as e:
+        messages.error(request, str(e))
+
+    return redirect('apartamentos:painel_proprietario')

@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalhes da Reserva #{{ reserva.pk }}{% endblock title %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">Detalhes da Reserva #{{ reserva.pk }}</h1>
+
+    <div class="row">
+        <div class="col-md-7">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Informações do Imóvel</h4>
+                </div>
+                <div class="card-body">
+                    <h5><a href="{% url 'apartamentos:detalhe_apartamento' pk=reserva.apartamento.pk %}">{{ reserva.apartamento.titulo }}</a></h5>
+                    <p class="text-muted">{{ reserva.apartamento.predio.endereco_completo }}</p>
+                    <hr>
+                    <p><strong>Proprietário:</strong> {{ reserva.apartamento.proprietario.get_full_name|default:reserva.apartamento.proprietario.username }}</p>
+                    </div>
+            </div>
+        </div>
+
+        <div class="col-md-5">
+            <div class="card">
+                <div class="card-header">
+                    <h4>Resumo da Reserva</h4>
+                </div>
+                <ul class="list-group list-group-flush">
+                    <li class="list-group-item d-flex justify-content-between">
+                        <strong>Status:</strong>
+                        {% if reserva.status == 'PENDENTE' %}
+                            <span class="badge bg-warning text-dark">{{ reserva.get_status_display }}</span>
+                        {% elif reserva.status == 'CONFIRMADA' %}
+                            <span class="badge bg-success">{{ reserva.get_status_display }}</span>
+                        {% else %}
+                            <span class="badge bg-secondary">{{ reserva.get_status_display }}</span>
+                        {% endif %}
+                    </li>
+                    <li class="list-group-item"><strong>Hóspede:</strong> {{ reserva.hospede.get_full_name|default:reserva.hospede.username }}</li>
+                    <li class="list-group-item"><strong>Check-in:</strong> {{ reserva.data_checkin|date:"d/m/Y" }}</li>
+                    <li class="list-group-item"><strong>Check-out:</strong> {{ reserva.data_checkout|date:"d/m/Y" }}</li>
+                    <li class="list-group-item"><strong>Solicitada em:</strong> {{ reserva.data_reserva|date:"d/m/Y" }}</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% if form_avaliacao %}
+        <div class="row mt-4">
+            <div class="col-md-7">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Deixe sua Avaliação</h4>
+                    </div>
+                    <div class="card-body">
+                        <form method="post">
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="{{ form_avaliacao.nota.id_for_label }}" class="form-label">Sua Nota</label>
+                                {{ form_avaliacao.nota }}
+                            </div>
+                            <div class="mb-3">
+                                <label for="{{ form_avaliacao.comentario.id_for_label }}" class="form-label">Seu Comentário</label>
+                                {{ form_avaliacao.comentario }}
+                            </div>
+                            <button type="submit" class="btn btn-primary">Enviar Avaliação</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
+</div>
+{% endblock content %}
