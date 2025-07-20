@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Avg
 from django.forms import inlineformset_factory
-from django.core.paginator import EmptyPage
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.views import View
 
 from .services import aprovar_reserva_service, recusar_reserva_service
@@ -48,18 +48,18 @@ def perfil_view(request):
     context = {'user_form': user_form, 'perfil_form': perfil_form}
     return render(request, 'apartamentos/perfil_edit.html', context)
 
+
 class ApartamentoListView(View):
     template_name = 'apartamentos/apartamento_list.html'
 
     def get(self, request, *args, **kwargs):
-        # 1. A consulta base continua a mesma
-        base_queryset = Apartamento.objects.filter(disponivel=True).select_related('predio').order_by('-data_cadastro')
+        # --- A ÚNICA MUDANÇA ESTÁ NESTA LINHA ---
+        # Removemos o .order_by('-data_cadastro') para resolver o conflito com .distinct()
+        base_queryset = Apartamento.objects.filter(disponivel=True).select_related('predio')
 
-        # 2. A lógica de filtro com django-filter
         filterset = ApartamentoFilter(request.GET, queryset=base_queryset)
         queryset_filtrado = filterset.qs
 
-        # 3. A lógica de filtro por data
         data_checkin_str = request.GET.get('data_checkin', '')
         data_checkout_str = request.GET.get('data_checkout', '')
 
@@ -77,20 +77,17 @@ class ApartamentoListView(View):
             except ValueError:
                 pass
 
-        # 4. APLICANDO O .distinct() NO FINAL DE TODAS AS OPERAÇÕES
         final_queryset = queryset_filtrado.distinct()
 
-        # 5. LÓGICA DE PAGINAÇÃO MANUAL E SEGURA
-        paginator = Paginator(final_queryset, 9)  # 9 itens por página
+        paginator = Paginator(final_queryset, 9)
         page_number = request.GET.get('page')
         try:
             page_obj = paginator.page(page_number)
         except PageNotAnInteger:
             page_obj = paginator.page(1)
         except EmptyPage:
-            page_obj = paginator.page(1)  # Sempre volte para a página 1 em caso de erro
+            page_obj = paginator.page(1)
 
-        # 6. CONSTRUÇÃO MANUAL DO CONTEXTO
         context = {
             'apartamentos': page_obj.object_list,
             'page_obj': page_obj,
@@ -101,6 +98,7 @@ class ApartamentoListView(View):
         }
 
         return render(request, self.template_name, context)
+
 
 class PredioListView(ListView):
     model = Predio
@@ -130,8 +128,18 @@ class ApartamentoDetailView(FormMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['form'] = self.get_form()
+
+        # --- AQUI ESTÁ A MELHORIA ---
         status_bloqueantes = [Reserva.StatusReserva.CONFIRMADA, Reserva.StatusReserva.PENDENTE]
-        context['datas_ocupadas'] = self.object.reservas.filter(status__in=status_bloqueantes).order_by('data_checkin')
+
+        # Adicionamos o filtro 'data_checkout__gte=timezone.localdate()'
+        # gte = Greater Than or Equal (maior ou igual a)
+        # Isso garante que só pegamos reservas que terminam hoje ou no futuro.
+        context['datas_ocupadas'] = self.object.reservas.filter(
+            status__in=status_bloqueantes,
+            data_checkout__gte=timezone.localdate()
+        ).order_by('data_checkin')
+        # --- FIM DA MELHORIA ---
 
         # Lógica para buscar e exibir avaliações
         apartamento = self.get_object()
@@ -330,35 +338,28 @@ class ApartamentoDeleteView(PermissionRequiredMixin, UserPassesTestMixin, Delete
         messages.success(self.request, f"O anúncio '{self.object.titulo}' foi excluído com sucesso.")
         return super().form_valid(form)
 
+# Adicione JsonResponse à esta linha de import
+from django.http import HttpResponse, JsonResponse
 
 @require_POST
 @login_required
 def aprovar_reserva(request, pk):
     reserva = get_object_or_404(Reserva, pk=pk)
     try:
-        # A chamada continua a mesma, mas agora chama a função importada diretamente
+        # CORREÇÃO: Chamamos a função diretamente, sem o prefixo 'services.'
         aprovar_reserva_service(reserva=reserva, usuario=request.user)
-        messages.success(request, f'A reserva para {reserva.apartamento.titulo} foi CONFIRMADA.')
+        return JsonResponse({'status': 'success', 'message': 'Reserva aprovada com sucesso!'})
     except PermissionError as e:
-        messages.error(request, str(e))
-    return redirect('apartamentos:painel_proprietario')
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=403)
+
 
 @require_POST
 @login_required
 def recusar_reserva(request, pk):
     reserva = get_object_or_404(Reserva, pk=pk)
-    if request.user == reserva.apartamento.proprietario:
-        reserva.status = Reserva.StatusReserva.CANCELADA
-        reserva.save()
-        messages.info(request, f'A reserva para {reserva.apartamento.titulo} foi RECUSADA.')
-    else:
-        messages.error(request, 'Você não tem permissão para recusar esta reserva.')
-
     try:
-        # Chamamos nosso novo serviço para recusar a reserva
+        # CORREÇÃO: Chamamos a função diretamente, sem o prefixo 'services.'
         recusar_reserva_service(reserva=reserva, usuario=request.user)
-        messages.info(request, f'A reserva para {reserva.apartamento.titulo} foi RECUSADA.')
+        return JsonResponse({'status': 'success', 'message': 'Reserva recusada.'})
     except PermissionError as e:
-        messages.error(request, str(e))
-
-    return redirect('apartamentos:painel_proprietario')
+        return JsonResponse({'status': 'error', 'message': str(e)}, status=403)

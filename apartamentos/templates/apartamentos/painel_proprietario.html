@@ -14,9 +14,8 @@
     </div>
     <div class="card-body">
         {% for reserva in reservas_pendentes %}
-            <div class="d-flex justify-content-between align-items-center p-2 border-bottom">
+            <div id="reserva-{{ reserva.pk }}" class="d-flex justify-content-between align-items-center p-2 border-bottom">
                 <div>
-                    <strong>{{ reserva.apartamento.titulo }}</strong><br>
                     <strong><a href="{% url 'apartamentos:detalhe_reserva' pk=reserva.pk %}">{{ reserva.apartamento.titulo }}</a></strong><br>
                     <small class="text-muted">
                         Hóspede: {{ reserva.hospede.get_full_name|default:reserva.hospede.username }} |
@@ -25,11 +24,11 @@
                     </small>
                 </div>
                 <div class="d-flex gap-2">
-                    <form action="{% url 'apartamentos:aprovar_reserva' pk=reserva.pk %}" method="post" class="d-inline">
+                    <form action="{% url 'apartamentos:aprovar_reserva' pk=reserva.pk %}" method="post" class="d-inline form-reserva-action" data-reserva-id="{{ reserva.pk }}">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-sm btn-success">Aprovar</button>
                     </form>
-                    <form action="{% url 'apartamentos:recusar_reserva' pk=reserva.pk %}" method="post" class="d-inline">
+                    <form action="{% url 'apartamentos:recusar_reserva' pk=reserva.pk %}" method="post" class="d-inline form-reserva-action" data-reserva-id="{{ reserva.pk }}">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-sm btn-danger">Recusar</button>
                     </form>
@@ -80,3 +79,51 @@
     </div>
 </div>
 {% endblock content %}
+
+{% block scripts %}
+{{ block.super }}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const forms = document.querySelectorAll('.form-reserva-action');
+
+    forms.forEach(form => {
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const url = form.action;
+            const csrfToken = form.querySelector('input[name=csrfmiddlewaretoken]').value;
+
+            // --- AQUI ESTÁ A CORREÇÃO ---
+            // Lemos o ID diretamente do atributo data- que adicionamos ao formulário.
+            // É mais seguro e mais claro que tentar extrair da URL.
+            const reservaId = form.dataset.reservaId;
+
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Mostra a mensagem de sucesso ou erro
+                alert(data.message);
+
+                if (data.status === 'success') {
+                    // Se deu certo, encontra o div da reserva pelo seu ID único e o remove.
+                    const reservaDiv = document.getElementById(`reserva-${reservaId}`);
+                    if (reservaDiv) {
+                        // Animação suave para desaparecer
+                        reservaDiv.style.transition = 'opacity 0.5s ease';
+                        reservaDiv.style.opacity = '0';
+                        setTimeout(() => reservaDiv.remove(), 500);
+                    }
+                }
+            })
+            .catch(error => console.error('Erro no request AJAX:', error));
+        });
+    });
+});
+</script>
+{% endblock scripts %}

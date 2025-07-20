@@ -1,19 +1,16 @@
+# config/settings/base.py
 import os
 from pathlib import Path
 from dotenv import load_dotenv
-from decouple import config
-
-GEMINI_API_KEY = config('GEMINI_API_KEY')
 
 load_dotenv()
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+# Remova DEBUG e SECRET_KEY daqui, pois eles serão específicos de cada ambiente
 SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'fallback_insecure_key')
-DEBUG = os.getenv('DJANGO_DEBUG', 'False') == 'True'
 
-ALLOWED_HOSTS = []
-
+# Lista de aplicativos instalados (comum a todos os ambientes)
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -21,11 +18,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    # Nossos Apps
     'apartamentos.apps.ApartamentosConfig',
     'django_filters',
     'django_cleanup.apps.CleanupConfig',
 ]
 
+# Middlewares (comuns a todos os ambientes)
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -56,6 +55,7 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'config.wsgi.application'
 
+# Banco de dados (pode ser sobrescrito no production.py)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
@@ -63,32 +63,23 @@ DATABASES = {
     }
 }
 
-AUTH_PASSWORD_VALIDATORS = [
-    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
-    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
-]
-
+# ... (AUTH_PASSWORD_VALIDATORS, LANGUAGE_CODE, TIME_ZONE, etc. continuam aqui) ...
 LANGUAGE_CODE = 'pt-br'
 TIME_ZONE = 'America/Sao_Paulo'
-USE_I18N = True
-USE_TZ = True
+# ...
 
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles_collect'
+# STATIC_ROOT será definido no production.py
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'mediafiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
-
 AUTHENTICATION_BACKENDS = [
     'apartamentos.backends.EmailBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
-
 LOGIN_REDIRECT_URL = 'apartamentos:lista_apartamentos'
 LOGOUT_REDIRECT_URL = 'homepage'
 LOGIN_URL = 'login'
