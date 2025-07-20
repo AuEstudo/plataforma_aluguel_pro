@@ -1,8 +1,12 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
-*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
 
-
+# Distribution / packaging
+.DS_Store
 dist/
 eggs/
 parts/
@@ -16,5 +20,30 @@ share/python-wheels/
 pip-log.txt
 pip-delete-this-directory.txt
 
+# Environments
 .env
+env/
+venv/
+bin/ # Se usar um venv com a estrutura padrão Linux/macOS
 
+# Django specific
+*.log
+*.pot
+*.mo
+*.orig
+db.sqlite3          # Seu banco de dados SQLite de desenvolvimento
+media/              # Pasta de uploads de mídia (se usar)
+mediafiles/         # <--- Adicionado explicitamente, se você usar essa pasta
+staticfiles/        # Pasta de arquivos estáticos coletados (se usar collectstatic)
+
+# IDEs and Editors
+.idea/              # PyCharm, IntelliJ IDEA
+.vscode/            # VS Code
+.history/           # VS Code local history
+*.sublime-project
+*.sublime-workspace
+*.iml               # IntelliJ IDEA modules
+
+# Operating System files
+.DS_Store           # macOS
+Thumbs.db           # Windows
