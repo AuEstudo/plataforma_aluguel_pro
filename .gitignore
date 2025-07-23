@@ -1,49 +1,35 @@
-# Byte-compiled / optimized / DLL files
+# Arquivos de Cache e Bytecode do Python
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
-.Python
 
-# Distribution / packaging
-.DS_Store
-dist/
-eggs/
-parts/
-sdist/
-wheels/
-share/python-wheels/
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Environments
-.env
-env/
+# Ambiente Virtual
+.venv/
 venv/
-bin/ # Se usar um venv com a estrutura padrão Linux/macOS
+env/
 
-# Django specific
+# Banco de Dados
+*.sqlite3
+*.db
+
+# Arquivos de Configuração de Editores e IDEs
+.idea/
+.vscode/
+
+# Arquivos de Segredos - MUITO IMPORTANTE
+.env
+
+# Arquivos de Mídia (gerados pelo usuário)
+/mediafiles/
+
+# Arquivos Estáticos Coletados (para produção)
+/staticfiles/
+
+# Logs e arquivos temporários
 *.log
-*.pot
-*.mo
-*.orig
-db.sqlite3          # Seu banco de dados SQLite de desenvolvimento
-media/              # Pasta de uploads de mídia (se usar)
-mediafiles/         # <--- Adicionado explicitamente, se você usar essa pasta
-staticfiles/        # Pasta de arquivos estáticos coletados (se usar collectstatic)
+local_settings.py
 
-# IDEs and Editors
-.idea/              # PyCharm, IntelliJ IDEA
-.vscode/            # VS Code
-.history/           # VS Code local history
-*.sublime-project
-*.sublime-workspace
-*.iml               # IntelliJ IDEA modules
-
-# Operating System files
-.DS_Store           # macOS
-Thumbs.db           # Windows
+# Arquivos de Cobertura de Testes
+.coverage
+htmlcov/
