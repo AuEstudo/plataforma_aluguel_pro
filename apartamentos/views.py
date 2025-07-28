@@ -49,21 +49,21 @@ def perfil_view(request):
     return render(request, 'apartamentos/perfil_edit.html', context)
 
 
+# apartamentos/views.py
 class ApartamentoListView(View):
     template_name = 'apartamentos/apartamento_list.html'
 
     def get(self, request, *args, **kwargs):
-        # --- A ÚNICA MUDANÇA ESTÁ NESTA LINHA ---
-        # Removemos o .order_by('-data_cadastro') para resolver o conflito com .distinct()
         base_queryset = Apartamento.objects.filter(disponivel=True).select_related('predio')
 
         filterset = ApartamentoFilter(request.GET, queryset=base_queryset)
         queryset_filtrado = filterset.qs
 
+        # Lógica de filtro por data
         data_checkin_str = request.GET.get('data_checkin', '')
         data_checkout_str = request.GET.get('data_checkout', '')
-
         if data_checkin_str and data_checkout_str:
+            # ... (a lógica de filtro de data continua a mesma, sem alterações) ...
             try:
                 data_checkin = timezone.datetime.strptime(data_checkin_str, '%Y-%m-%d').date()
                 data_checkout = timezone.datetime.strptime(data_checkout_str, '%Y-%m-%d').date()
@@ -77,17 +77,18 @@ class ApartamentoListView(View):
             except ValueError:
                 pass
 
-        final_queryset = queryset_filtrado.distinct()
+        # A consulta final, limpa e estável
+        final_queryset = queryset_filtrado.distinct().order_by('-data_cadastro')
 
+        # Paginação
         paginator = Paginator(final_queryset, 9)
         page_number = request.GET.get('page')
         try:
             page_obj = paginator.page(page_number)
-        except PageNotAnInteger:
-            page_obj = paginator.page(1)
-        except EmptyPage:
+        except (PageNotAnInteger, EmptyPage):
             page_obj = paginator.page(1)
 
+        # Contexto
         context = {
             'apartamentos': page_obj.object_list,
             'page_obj': page_obj,
@@ -99,13 +100,27 @@ class ApartamentoListView(View):
 
         return render(request, self.template_name, context)
 
-
 class PredioListView(ListView):
     model = Predio
     template_name = 'apartamentos/predio_list.html'
     context_object_name = 'predios'
     paginate_by = 10
 
+    def get(self, request, *args, **kwargs):
+        """
+        Adiciona uma verificação explícita para o caso de a lista de prédios
+        estar vazia, evitando o erro EmptyPage.
+        """
+        queryset = self.get_queryset()
+
+        if not queryset.exists():
+            # Se NÃO existir nenhum prédio, nós pulamos a lógica de paginação
+            # e renderizamos o template com um contexto seguro.
+            context = {'predios': []}
+            return render(request, self.template_name, context)
+
+        # Se EXISTEM prédios, deixamos o comportamento normal da ListView acontecer.
+        return super().get(request, *args, **kwargs)
 
 class PredioDetailView(DetailView):
     model = Predio

@@ -1,14 +1,59 @@
 from django import forms
+from django.contrib.auth.models import User, Group
 from django.contrib.auth.forms import UserCreationForm
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.contrib.auth.models import User
-from .models import Predio, Apartamento, Perfil, Reserva
+from .models import Predio, Apartamento, Perfil, Reserva, Avaliacao
+
 
 class CustomUserCreationForm(UserCreationForm):
+    # 1. Definimos as opções de papéis que o usuário pode escolher.
+    PAPEL_CHOICES = [
+        ('CLIENTE', 'Quero alugar (Cliente)'),
+        ('PROPRIETARIO', 'Quero anunciar (Proprietário)'),
+    ]
+
+    # 2. Criamos o novo campo do formulário.
+    #    Usamos RadioSelect para uma melhor experiência do usuário (botões de rádio).
+    papel = forms.ChoiceField(
+        choices=PAPEL_CHOICES,
+        widget=forms.RadioSelect,
+        required=True,
+        label="Qual seu objetivo na plataforma?"
+    )
+
     class Meta(UserCreationForm.Meta):
         model = User
         fields = UserCreationForm.Meta.fields + ('first_name', 'last_name', 'email')
+
+    def save(self, commit=True):
+        """
+        Sobrescreve o metodo save para adicionar o novo usuário ao grupo
+        correto com base na escolha do papel.
+        """
+        user = super().save(commit=False)
+
+        if commit:
+            user.save()
+
+            # 3. Pegamos a escolha do usuário do formulário limpo.
+            papel_escolhido = self.cleaned_data.get('papel')
+
+            try:
+                # 4. Adicionamos o usuário ao grupo correspondente.
+                if papel_escolhido == 'CLIENTE':
+                    grupo = Group.objects.get(name='Clientes')
+                    user.groups.add(grupo)
+                elif papel_escolhido == 'PROPRIETARIO':
+                    grupo = Group.objects.get(name='Proprietários')
+                    user.groups.add(grupo)
+            except Group.DoesNotExist:
+                # Se os grupos não existirem (o que não deve acontecer
+                # se rodamos o comando criar_grupos), nada acontece.
+                pass
+
+        return user
 
 class UserUpdateForm(forms.ModelForm):
     email = forms.EmailField()
@@ -93,10 +138,6 @@ class ApartamentoSearchForm(forms.Form):
     data_checkin = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
     data_checkout = forms.DateField(required=False, widget=forms.DateInput(attrs={'type': 'date', 'class': 'form-control'}))
 
-# apartamentos/forms.py
-from .models import Avaliacao # Adicione a importação
-
-# ... (outros formulários) ...
 
 class AvaliacaoForm(forms.ModelForm):
     nota = forms.ChoiceField(

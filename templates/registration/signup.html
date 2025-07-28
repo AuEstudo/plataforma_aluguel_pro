@@ -1,19 +1,21 @@
-{% extends "base.html" %}
+{% extends 'base.html' %}
 
 {% block title %}Cadastre-se{% endblock title %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-header">
-                <h2>Criar uma Nova Conta</h2>
-            </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm">
             <div class="card-body">
+                <h2 class="card-title text-center mb-4">Criar uma Conta</h2>
                 <form method="post">
                     {% csrf_token %}
+
                     {{ form.as_p }}
-                    <button type="submit" class="btn btn-success w-100">Cadastrar</button>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">Cadastrar</button>
+                    </div>
                 </form>
             </div>
         </div>

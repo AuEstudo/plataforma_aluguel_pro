@@ -11,27 +11,32 @@
             <div class="p-4 mb-4 bg-light rounded-3 shadow-sm">
                 <h2 class="display-6">Encontre o lugar perfeito</h2>
                 <form method="get" class="row g-3 align-items-end">
-                    <div class="col-lg-5 col-md-12">
-                        <label class="form-label fw-bold">Cidade</label>
-                        {{ filter.form.predio__cidade }}
-                        <datalist id="lista-cidades">
-                            {% for cidade in cidades_disponiveis %}
-                                <option value="{{ cidade }}">
-                            {% endfor %}
-                        </datalist>
+                    <div class="col-lg-8">
+                        <div class="row">
+                            <div class="col-lg-6 col-md-12 mb-3 mb-lg-0">
+                                <label class="form-label fw-bold">Cidade</label>
+                                {{ filter.form.predio__cidade }}
+                                <datalist id="lista-cidades">
+                                    {% for cidade in cidades_disponiveis %}
+                                        <option value="{{ cidade }}">
+                                    {% endfor %}
+                                </datalist>
+                            </div>
+                            <div class="col-lg-3 col-md-6 mb-3 mb-lg-0">
+                                <label class="form-label fw-bold">Check-in</label>
+                                <input type="date" name="data_checkin" value="{{ request.GET.data_checkin }}" class="form-control">
+                            </div>
+                            <div class="col-lg-3 col-md-6 mb-3 mb-lg-0">
+                                <label class="form-label fw-bold">Check-out</label>
+                                <input type="date" name="data_checkout" value="{{ request.GET.data_checkout }}" class="form-control">
+                            </div>
+                        </div>
                     </div>
-                    <div class="col-lg-3 col-md-6">
-                        <label class="form-label fw-bold">Check-in</label>
-                        <input type="date" name="data_checkin" value="{{ request.GET.data_checkin }}" class="form-control">
-                    </div>
-                    <div class="col-lg-3 col-md-6">
-                        <label class="form-label fw-bold">Check-out</label>
-                        <input type="date" name="data_checkout" value="{{ request.GET.data_checkout }}" class="form-control">
-                    </div>
-                    <div class="col-lg-1 col-md-12">
-                        <button type="submit" class="btn btn-primary w-100">Buscar</button>
+                    <div class="col-lg-1 d-grid">
+                        <button type="submit" class="btn btn-primary">Buscar</button>
                     </div>
                 </form>
+
             </div>
         </div>
     </div>

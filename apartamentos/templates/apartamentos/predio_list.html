@@ -7,9 +7,9 @@
 <div class="container">
     <h1 class="mb-4">Nossos Prédios e Condomínios</h1>
 
-    <div class="row" id="predio-list-container">
+    <div class="row">
         {% for predio in predios %}
-            <div class="col-md-6 mb-4 predio-card">
+            <div class="col-md-6 mb-4">
                 <div class="card h-100 shadow-sm">
                     <div class="row g-0">
                         <div class="col-md-4">
@@ -36,12 +36,35 @@
         {% endfor %}
     </div>
 
-    {% if page_obj.has_next %}
-        <div id="sentinela" class="text-center p-4">
-            <div class="spinner-border text-primary" role="status">
-                <span class="visually-hidden">Carregando mais...</span>
-            </div>
-        </div>
+    {% if is_paginated %}
+        <nav aria-label="Paginação dos prédios" class="mt-4">
+            <ul class="pagination justify-content-center">
+
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                {% endif %}
+
+                <li class="page-item active" aria-current="page">
+                    <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                </li>
+
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}">Próxima</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Próxima</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
     {% endif %}
 
 </div>
@@ -49,54 +72,5 @@
 
 
 {% block scripts %}
-    {{ block.super }} <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const sentinela = document.querySelector('#sentinela');
-            if (!sentinela) {
-                return; // Para o script se não houver próxima página
-            }
-
-            let nextPage = {{ page_obj.next_page_number|default:0 }};
-            let isLoading = false;
-            const totalPages = {{ page_obj.paginator.num_pages|default:1 }};
-
-            const observer = new IntersectionObserver(entries => {
-                if (entries[0].isIntersecting && nextPage > 0 && nextPage <= totalPages && !isLoading) {
-                    isLoading = true;
-
-                    // Busca a próxima página da URL atual
-                    fetch(`?page=${nextPage}`)
-                        .then(response => response.text())
-                        .then(html => {
-                            const parser = new DOMParser();
-                            const doc = parser.parseFromString(html, 'text/html');
-
-                            // Encontra os novos cards de prédio na resposta
-                            const novosPredios = doc.querySelectorAll('.predio-card');
-                            // Pega o container principal
-                            const container = document.querySelector('#predio-list-container');
-
-                            // Adiciona os novos prédios ao final da lista
-                            novosPredios.forEach(predio => {
-                                container.appendChild(predio);
-                            });
-
-                            // Se a próxima página carregada for a última, removemos a sentinela
-                            if (nextPage >= totalPages) {
-                                sentinela.remove();
-                                nextPage = 0;
-                            } else {
-                                nextPage++;
-                            }
-                            isLoading = false;
-                        }).catch(error => {
-                            console.error('Erro ao carregar mais prédios:', error);
-                            isLoading = false;
-                        });
-                }
-            }, { threshold: 1.0 });
-
-            observer.observe(sentinela);
-        });
-    </script>
-{% endblock scripts %}
+    {{ block.super }}
+    {% endblock scripts %}

@@ -1,11 +1,16 @@
 import pytest
 from django.contrib.auth.models import User
 from django.urls import reverse
+
+# Modelos e Forms que já estávamos usando
 from .models import Predio, Apartamento, Reserva, Avaliacao
+from .forms import ReservaForm
 
-# ... (imports) ...
+# --- AQUI ESTÁ A LINHA QUE FALTAVA ---
+# Importamos as funções de serviço que queremos testar.
+from .services import aprovar_reserva_service, recusar_reserva_service
 
-# --- NOSSA PRIMEIRA FIXTURE ---
+
 @pytest.fixture
 def cenario_reserva():
     """
@@ -22,23 +27,15 @@ def cenario_reserva():
         area_m2=50.00,
         preco_diaria=200.00
     )
-    return {'apartamento': apartamento, 'hospede': hospede}
+    return {'apartamento': apartamento, 'hospede': hospede, 'proprietario': proprietario}
 
-# ... (testes existentes) ...
 
 @pytest.mark.django_db
 def test_avaliacao_str_representation():
-    """
-    Teste unitário para verificar a representação em string do modelo Avaliacao.
-    """
-    # 1. Arrange (Organizar): Criamos todos os objetos necessários.
+    # ... (este teste continua igual) ...
     proprietario = User.objects.create_user(username='proprietario_teste')
     hospede = User.objects.create_user(username='hospede_teste')
-
     predio = Predio.objects.create(nome='Prédio de Teste', proprietario=proprietario)
-
-    # --- CORREÇÃO AQUI ---
-    # Adicionamos os campos obrigatórios 'area_m2' e 'preco_diaria'.
     apartamento = Apartamento.objects.create(
         titulo='Apartamento de Teste',
         predio=predio,
@@ -46,7 +43,6 @@ def test_avaliacao_str_representation():
         area_m2=50.00,
         preco_diaria=150.00
     )
-
     reserva = Reserva.objects.create(
         apartamento=apartamento,
         hospede=hospede,
@@ -54,84 +50,86 @@ def test_avaliacao_str_representation():
         data_checkout='2025-01-05'
     )
     avaliacao = Avaliacao.objects.create(reserva=reserva, nota=5, comentario="Ótimo!")
-
-    # 2. Act (Agir)
     representacao_str = str(avaliacao)
-
-    # 3. Assert (Verificar)
     assert representacao_str == 'Avaliação de hospede_teste para Apartamento de Teste'
 
 
 @pytest.mark.django_db
 def test_homepage_loads_successfully(client):
-    """
-    Teste de integração para verificar se a Homepage carrega.
-    """
+    # ... (este teste continua igual) ...
     url = reverse('homepage')
     response = client.get(url)
     assert response.status_code == 200
 
-# Adicione a importação do formulário que vamos testar
-from .forms import ReservaForm
-
-# ... (fixtures e testes existentes) ...
 
 @pytest.mark.django_db
 def test_reserva_form_valido(cenario_reserva):
-    """
-    Verifica se o ReservaForm é considerado válido com datas corretas.
-    """
-    # Arrange: Preparamos os dados para o formulário.
-    dados_validos = {
-        'data_checkin': '2025-08-01',
-        'data_checkout': '2025-08-05'
-    }
-    # Passamos o apartamento da fixture para o formulário, como nossa view faz.
+    # ... (este teste continua igual) ...
+    dados_validos = {'data_checkin': '2025-08-01', 'data_checkout': '2025-08-05'}
     form = ReservaForm(data=dados_validos, apartamento=cenario_reserva['apartamento'])
-
-    # Act & Assert: Verificamos se o formulário é válido.
     assert form.is_valid()
 
-# ...
 
 @pytest.mark.django_db
 def test_reserva_form_data_passada_invalido(cenario_reserva):
-    """
-    Verifica se o formulário invalida uma tentativa de reserva no passado.
-    """
-    # Arrange: Datas no passado.
-    dados_invalidos = {
-        'data_checkin': '2020-01-01',
-        'data_checkout': '2020-01-05'
-    }
+    # ... (este teste continua igual) ...
+    dados_invalidos = {'data_checkin': '2020-01-01', 'data_checkout': '2020-01-05'}
     form = ReservaForm(data=dados_invalidos, apartamento=cenario_reserva['apartamento'])
-
-    # Act & Assert: Verificamos que o formulário NÃO é válido.
     assert not form.is_valid()
-    # E que o erro está associado ao campo 'data_checkin'.
     assert 'data_checkin' in form.errors
 
 
 @pytest.mark.django_db
 def test_reserva_form_conflito_de_datas_invalido(cenario_reserva):
-    """
-    Verifica se o formulário invalida uma reserva que conflita com uma existente.
-    """
-    # Arrange: Primeiro, criamos uma reserva que já existe no banco de dados.
+    # ... (este teste continua igual) ...
     Reserva.objects.create(
         apartamento=cenario_reserva['apartamento'],
         hospede=cenario_reserva['hospede'],
         data_checkin='2025-09-10',
         data_checkout='2025-09-15'
     )
-    # Agora, tentamos criar uma nova reserva que se sobrepõe à existente.
-    dados_conflitantes = {
-        'data_checkin': '2025-09-12',
-        'data_checkout': '2025-09-17'
-    }
+    dados_conflitantes = {'data_checkin': '2025-09-12', 'data_checkout': '2025-09-17'}
     form = ReservaForm(data=dados_conflitantes, apartamento=cenario_reserva['apartamento'])
-
-    # Act & Assert: Verificamos que o formulário NÃO é válido.
     assert not form.is_valid()
-    # E que o erro é um erro geral do formulário (não associado a um campo específico).
     assert '__all__' in form.errors
+
+
+@pytest.mark.django_db
+def test_aprovar_reserva_service_falha_permissao(cenario_reserva):
+    outro_usuario = User.objects.create_user(username='outro_usuario')
+    reserva = Reserva.objects.create(
+        apartamento=cenario_reserva['apartamento'],
+        hospede=cenario_reserva['hospede'],
+        data_checkin='2025-10-01',
+        data_checkout='2025-10-05'
+    )
+    with pytest.raises(PermissionError, match="Usuário não tem permissão para aprovar esta reserva."):
+        aprovar_reserva_service(reserva=reserva, usuario=outro_usuario)
+
+
+@pytest.mark.django_db
+def test_recusar_reserva_service_sucesso(cenario_reserva):
+    reserva = Reserva.objects.create(
+        apartamento=cenario_reserva['apartamento'],
+        hospede=cenario_reserva['hospede'],
+        data_checkin='2025-11-01',
+        data_checkout='2025-11-05',
+        status=Reserva.StatusReserva.PENDENTE
+    )
+    proprietario = cenario_reserva['proprietario']
+    recusar_reserva_service(reserva=reserva, usuario=proprietario)
+    reserva.refresh_from_db()
+    assert reserva.status == Reserva.StatusReserva.CANCELADA
+
+
+@pytest.mark.django_db
+def test_recusar_reserva_service_falha_permissao(cenario_reserva):
+    outro_usuario = User.objects.create_user(username='outro_usuario_2')
+    reserva = Reserva.objects.create(
+        apartamento=cenario_reserva['apartamento'],
+        hospede=cenario_reserva['hospede'],
+        data_checkin='2025-12-01',
+        data_checkout='2025-12-05'
+    )
+    with pytest.raises(PermissionError, match="Usuário não tem permissão para recusar esta reserva."):
+        recusar_reserva_service(reserva=reserva, usuario=outro_usuario)
