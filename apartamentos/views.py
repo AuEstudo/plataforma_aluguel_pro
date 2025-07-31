@@ -6,6 +6,7 @@ from django.views.decorators.http import require_POST
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
+from django.contrib.auth.models import Group
 from django.utils import timezone
 from django.db.models import Avg
 from django.forms import inlineformset_factory
@@ -14,7 +15,7 @@ from django.views import View
 
 from .services import aprovar_reserva_service, recusar_reserva_service
 from .filters import ApartamentoFilter
-from .models import Apartamento, Predio, Reserva, Avaliacao, FotoApartamento
+from .models import Apartamento, Predio, Reserva, Avaliacao, FotoApartamento, Perfil
 from .forms import (
     CustomUserCreationForm, PredioForm, ApartamentoForm,
     UserUpdateForm, PerfilUpdateForm, ReservaForm, ApartamentoSearchForm,
@@ -31,6 +32,32 @@ class SignUpView(CreateView):
     success_url = reverse_lazy('login')
     template_name = 'registration/signup.html'
 
+    def form_valid(self, form):
+        # A lógica padrão do CreateView salva o form e cria o usuário (self.object)
+        response = super().form_valid(form)
+
+        user = self.object
+        papel_escolhido = form.cleaned_data.get('papel')
+
+        try:
+            if papel_escolhido == 'CLIENTE':
+                grupo = Group.objects.get(name='Clientes')
+                user.groups.add(grupo)
+                # Mantém o Perfil consistente com o grupo
+                user.perfil.cargo = Perfil.CargoUsuario.CLIENTE
+
+            elif papel_escolhido == 'PROPRIETARIO':
+                grupo = Group.objects.get(name='Proprietários')
+                user.groups.add(grupo)
+                # Mantém o Perfil consistente com o grupo
+                user.perfil.cargo = Perfil.CargoUsuario.PROPRIETARIO
+
+            user.perfil.save()  # Salva a alteração do cargo no perfil
+
+        except Group.DoesNotExist:
+            pass
+
+        return response
 
 @login_required
 def perfil_view(request):
