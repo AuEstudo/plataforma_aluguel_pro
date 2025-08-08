@@ -1,0 +1,14 @@
+Olá, {{ proprietario.first_name|default:proprietario.username }}.
+
+Você recebeu uma nova solicitação de reserva!
+
+Detalhes:
+- Imóvel: {{ apartamento.titulo }} (Prédio: {{ apartamento.predio.nome }})
+- Hóspede: {{ hospede.first_name|default:hospede.username }}
+- Check-in: {{ reserva.data_checkin|date:"d/m/Y" }}
+- Check-out: {{ reserva.data_checkout|date:"d/m/Y" }}
+
+Por favor, acesse seu painel de proprietário para aprovar ou recusar esta solicitação.
+
+Obrigado,
+Plataforma Aluguel PRO

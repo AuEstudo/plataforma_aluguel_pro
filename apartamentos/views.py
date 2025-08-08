@@ -1,3 +1,5 @@
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse_lazy
 from django.views.generic import ListView, DetailView, CreateView, UpdateView, DeleteView, TemplateView
@@ -171,7 +173,6 @@ class ApartamentoDetailView(FormMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['form'] = self.get_form()
 
-        # --- AQUI ESTÁ A MELHORIA ---
         status_bloqueantes = [Reserva.StatusReserva.CONFIRMADA, Reserva.StatusReserva.PENDENTE]
 
         # Adicionamos o filtro 'data_checkout__gte=timezone.localdate()'
@@ -210,6 +211,31 @@ class ApartamentoDetailView(FormMixin, DetailView):
         reserva.hospede = self.request.user
         reserva.save()
         messages.success(self.request, "Sua solicitação de reserva foi enviada com sucesso!")
+
+        # --- LÓGICA DE ENVIO DE E-MAIL ADICIONADA ---
+        try:
+            proprietario = self.object.proprietario
+            contexto_email = {
+                'proprietario': proprietario,
+                'hospede': reserva.hospede,
+                'apartamento': self.object,
+                'reserva': reserva,
+            }
+
+            # Renderiza o template de e-mail para uma string
+            corpo_email = render_to_string('emails/notificacao_nova_reserva.txt', contexto_email)
+
+            send_mail(
+                subject=f'Nova Solicitação de Reserva para "{self.object.titulo}"',
+                message=corpo_email,
+                from_email='nao-responda@aluguelpro.com',  # E-mail remetente (pode ser qualquer um em desenvolvimento)
+                recipient_list=[proprietario.email],  # Lista de destinatários
+                fail_silently=False,  # Se der erro no envio, queremos ver o erro (em produção pode ser True)
+            )
+        except Exception as e:
+            # Se o e-mail falhar, não quebramos o site, apenas registramos o erro no console.
+            print(f"ERRO ao enviar e-mail de notificação: {e}")
+
         return super().form_valid(form)
 
     def get_queryset(self):

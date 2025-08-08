@@ -1,0 +1,11 @@
+Olá, {{ hospede.first_name|default:hospede.username }}.
+
+Boas notícias! Sua solicitação de reserva para o imóvel "{{ apartamento.titulo }}" foi APROVADA.
+
+Detalhes da sua estadia:
+- Check-in: {{ reserva.data_checkin|date:"d/m/Y" }}
+- Check-out: {{ reserva.data_checkout|date:"d/m/Y" }}
+
+Você pode ver todos os detalhes acessando a seção "Minhas Reservas" em nossa plataforma.
+
+Obrigado por escolher a Plataforma Aluguel PRO!

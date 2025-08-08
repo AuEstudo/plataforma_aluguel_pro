@@ -4,16 +4,12 @@
 
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h1>{{ predio.nome }}</h1>
-        <p class="lead">{{ predio.endereco_completo }}</p>
-        <p class="text-muted">{{ predio.cidade }}, {{ predio.estado }} - CEP: {{ predio.cep }}</p>
-    </div>
+    <h1 class="mb-0">{{ predio.nome }}</h1>
 
-    {% if perms.apartamentos.add_apartamento %}
-    <a href="{% url 'apartamentos:apartamento_create' pk_predio=predio.pk %}" class="btn btn-success">Adicionar Unidade a este Prédio</a>
+    {% if user == predio.proprietario and perms.apartamentos.add_apartamento %}
+        <a href="{% url 'apartamentos:criar_apartamento' pk_predio=predio.pk %}" class="btn btn-primary">Adicionar Unidade a este Prédio</a>
     {% endif %}
-    </div>
+</div>
 
 <h2 class="mb-3">Unidades Cadastradas Neste Prédio</h2>
 <div class="row">

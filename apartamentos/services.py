@@ -1,3 +1,5 @@
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
 from django.contrib.auth.models import User
 from .models import Reserva
 
@@ -12,8 +14,25 @@ def aprovar_reserva_service(reserva: Reserva, usuario: User):
     reserva.status = Reserva.StatusReserva.CONFIRMADA
     reserva.save(update_fields=['status'])
 
+    # --- LÓGICA DE E-MAIL ADICIONADA ---
+    try:
+        contexto_email = {
+            'hospede': reserva.hospede,
+            'apartamento': reserva.apartamento,
+            'reserva': reserva,
+        }
+        corpo_email = render_to_string('emails/reserva_aprovada.txt', contexto_email)
+        send_mail(
+            subject=f'Sua reserva para "{reserva.apartamento.titulo}" foi APROVADA!',
+            message=corpo_email,
+            from_email='nao-responda@aluguelpro.com',
+            recipient_list=[reserva.hospede.email],
+            fail_silently=False,
+        )
+    except Exception as e:
+        print(f"ERRO ao enviar e-mail de aprovação: {e}")
 
-# --- NOVA FUNÇÃO ABAIXO ---
+
 def recusar_reserva_service(reserva: Reserva, usuario: User):
     """
     Executa a lógica de negócio para recusar uma reserva.
@@ -29,3 +48,21 @@ def recusar_reserva_service(reserva: Reserva, usuario: User):
     # Ação Principal: Mudar o status.
     reserva.status = Reserva.StatusReserva.CANCELADA
     reserva.save(update_fields=['status'])
+
+    # --- LÓGICA DE E-MAIL ADICIONADA ---
+    try:
+        contexto_email = {
+            'hospede': reserva.hospede,
+            'apartamento': reserva.apartamento,
+            'reserva': reserva,
+        }
+        corpo_email = render_to_string('emails/reserva_recusada.txt', contexto_email)
+        send_mail(
+            subject=f'Atualização sobre sua reserva para "{reserva.apartamento.titulo}"',
+            message=corpo_email,
+            from_email='nao-responda@aluguelpro.com',
+            recipient_list=[reserva.hospede.email],
+            fail_silently=False,
+        )
+    except Exception as e:
+        print(f"ERRO ao enviar e-mail de recusa: {e}")

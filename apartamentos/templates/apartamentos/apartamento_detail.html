@@ -99,10 +99,14 @@
                         </div>
 
                         <div class="d-grid">
-                            {% if perms.apartamentos.add_reserva %}
-                                <button type="submit" class="btn btn-success btn-lg">Solicitar Reserva</button>
+                            {% if user.is_authenticated %}
+                                {% if perms.apartamentos.add_reserva and user != apartamento.proprietario %}
+                                    <button type="submit" class="btn btn-success btn-lg">Solicitar Reserva</button>
+                                {% else %}
+                                    <button type="button" class="btn btn-secondary btn-lg" disabled>Indisponível para Você</button>
+                                {% endif %}
                             {% else %}
-                                <button type="button" class="btn btn-secondary btn-lg" disabled>Login como cliente para reservar</button>
+                                <a href="{% url 'login' %}?next={{ request.path }}" class="btn btn-secondary btn-lg">Login para reservar</a>
                             {% endif %}
                         </div>
                     </form>

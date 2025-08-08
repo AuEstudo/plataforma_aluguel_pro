@@ -1,13 +1,21 @@
-# config/settings/production.py
 from .base import *
 
 DEBUG = False
 
-# IMPORTANTE: Quando você for colocar o site no ar, você deve colocar
-# o seu domínio aqui. Ex: ['www.meusite.com.br']
 ALLOWED_HOSTS = ['seu_dominio.com', 'www.seu_dominio.com']
 
 # Configurações de segurança para produção (descomente quando tiver HTTPS)
+# SECURE_SSL_REDIRECT = True
 # SESSION_COOKIE_SECURE = True
 # CSRF_COOKIE_SECURE = True
-# SECURE_SSL_REDIRECT = True
+
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}

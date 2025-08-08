@@ -20,8 +20,8 @@ urlpatterns = [
     path('painel/', PainelProprietarioView.as_view(), name='painel_proprietario'),
     path('minhas-reservas/', MinhasReservasListView.as_view(), name='minhas_reservas'),
 
-    path('predio/novo/', PredioCreateView.as_view(), name='predio_create'),
-    path('predio/<int:pk_predio>/apartamento/novo/', ApartamentoCreateView.as_view(), name='apartamento_create'),
+    path('predio/novo/', PredioCreateView.as_view(), name='criar_predio'),
+    path('predio/<int:pk_predio>/apartamento/novo/', ApartamentoCreateView.as_view(), name='criar_apartamento'),
     path('apartamento/<int:pk>/editar/', ApartamentoUpdateView.as_view(), name='apartamento_update'),
     path('apartamento/<int:pk>/deletar/', ApartamentoDeleteView.as_view(), name='apartamento_delete'),
 

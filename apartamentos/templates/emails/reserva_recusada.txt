@@ -1,0 +1,10 @@
+Olá, {{ hospede.first_name|default:hospede.username }}.
+
+Temos uma atualização sobre sua solicitação de reserva para o imóvel "{{ apartamento.titulo }}".
+
+Infelizmente, sua solicitação para o período de {{ reserva.data_checkin|date:"d/m/Y" }} a {{ reserva.data_checkout|date:"d/m/Y" }} não pôde ser confirmada no momento.
+
+Não desanime! Temos muitos outros imóveis incríveis disponíveis. Acesse nossa plataforma para encontrar um novo lugar perfeito para você.
+
+Atenciosamente,
+Equipe da Plataforma Aluguel PRO
