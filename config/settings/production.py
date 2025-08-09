@@ -2,7 +2,7 @@ from .base import *
 
 DEBUG = False
 
-ALLOWED_HOSTS = ['seu_dominio.com', 'www.seu_dominio.com']
+ALLOWED_HOSTS = ['plataforma-aluguel-pro.onrender.com']
 
 # Configurações de segurança para produção (descomente quando tiver HTTPS)
 # SECURE_SSL_REDIRECT = True
