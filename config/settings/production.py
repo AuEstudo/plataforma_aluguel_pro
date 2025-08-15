@@ -27,3 +27,25 @@ STORAGES = {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
+
+# ==============================================================================
+# CONFIGURAÇÃO DE LOGGING PARA PRODUÇÃO
+# ==============================================================================
+# Esta configuração instrui o Django a enviar todos os erros (nível ERROR)
+# para o console (stderr), que é o que o Render Logs captura.
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    },
+}
