@@ -49,3 +49,16 @@ LOGGING = {
         },
     },
 }
+
+# ==============================================================================
+# CONFIGURAÇÃO DO CLOUDINARY PARA ARQUIVOS DE MÍDIA
+# ==============================================================================
+CLOUDINARY_STORAGE = {
+    'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
+    'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
+    'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
+}
+
+# Define o Cloudinary como o local de armazenamento padrão para arquivos de mídia
+# apenas no ambiente de produção.
+DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'

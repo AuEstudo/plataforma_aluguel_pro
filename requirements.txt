@@ -5,8 +5,10 @@ cachetools==5.5.2
 certifi==2025.7.14
 charset-normalizer==3.4.2
 click==8.2.1
+cloudinary==1.44.1
 coverage==7.9.2
 dj-database-url==3.0.1
+dj3-cloudinary-storage==0.0.6
 Django==5.2.3
 django-cleanup==9.0.0
 django-environ==0.12.0
@@ -52,6 +54,7 @@ python-decouple==3.8
 python-dotenv==1.1.0
 requests==2.32.4
 rsa==4.9.1
+six==1.17.0
 sqlparse==0.5.3
 tqdm==4.67.1
 typing-inspection==0.4.1
