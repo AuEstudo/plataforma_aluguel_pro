@@ -15,31 +15,46 @@ DATABASES = {
     'default': dj_database_url.config(conn_max_age=600, ssl_require=True)
 }
 
-# --- A CORREÇÃO ESTÁ AQUI ---
-# Adicionamos a configuração legada STATICFILES_STORAGE para compatibilidade
-# com a biblioteca dj3-cloudinary-storage durante o collectstatic.
 STATICFILES_STORAGE = 'cloudinary_storage.storage.StaticCloudinaryStorage'
-
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
-# A configuração moderna STORAGES continua aqui para o WhiteNoise.
+# --- A CORREÇÃO PRINCIPAL ESTÁ AQUI ---
+# A configuração moderna STORAGES agora é a fonte única da verdade.
 STORAGES = {
+    # Define o Cloudinary como o backend para MEDIA files (uploads).
     "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
     },
+    # Mantém o WhiteNoise para STATIC files (CSS, JS).
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
 
-# ==============================================================================
-# CONFIGURAÇÃO DO CLOUDINARY PARA ARQUIVOS DE MÍDIA
-# ==============================================================================
+# Configuração das credenciais que o Cloudinary irá usar
 CLOUDINARY_STORAGE = {
     'CLOUD_NAME': os.getenv('CLOUDINARY_CLOUD_NAME'),
     'API_KEY': os.getenv('CLOUDINARY_API_KEY'),
     'API_SECRET': os.getenv('CLOUDINARY_API_SECRET'),
 }
 
-# Define o Cloudinary como o local de armazenamento padrão para arquivos de mídia (uploads).
-DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+# A linha abaixo é agora redundante e foi removida para evitar conflitos.
+# DEFAULT_FILE_STORAGE = 'cloudinary_storage.storage.MediaCloudinaryStorage'
+
+# Configuração de LOGGING para vermos os erros em produção
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'ERROR',
+            'propagate': True,
+        },
+    },
+}
