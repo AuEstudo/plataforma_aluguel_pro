@@ -1,4 +1,3 @@
-
 {% extends 'base.html' %}
 {% load static %}
 {% block title %}{{ apartamento.titulo }} - {{ apartamento.predio.nome }}{% endblock title %}
@@ -132,29 +131,70 @@
             </div>
         </div>
     </div>
-</div>
 
-<div class="card mt-4">
-    <div class="card-header">
-        <h4>
-            Avaliações
-            {% if nota_media %}
-                <span class="badge bg-primary rounded-pill">{{ nota_media|floatformat:1 }} ★</span>
-            {% endif %}
-        </h4>
+    {% if user == apartamento.proprietario %}
+    <div class="mt-5">
+        <hr>
+        <h3 class="mb-4">Calendário de Ocupação</h3>
+        <div id="calendario-reservas" class="card shadow-sm p-3"></div>
     </div>
-    <div class="card-body">
-        {% for avaliacao in avaliacoes %}
-            <div class="border-bottom pb-3 mb-3">
-                <strong>{{ avaliacao.reserva.hospede.get_full_name|default:avaliacao.reserva.hospede.username }}</strong>
-                <span class="text-muted ms-2">{{ avaliacao.data_avaliacao|date:"d/m/Y" }}</span>
-                <p class="mt-1">Nota: {{ avaliacao.nota }} de 5 ★</p>
-                <p class="mb-0"><em>"{{ avaliacao.comentario }}"</em></p>
-            </div>
-        {% empty %}
-            <p>Este imóvel ainda não recebeu avaliações.</p>
-        {% endfor %}
+    {% endif %}
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h4>
+                Avaliações
+                {% if nota_media %}
+                    <span class="badge bg-primary rounded-pill">{{ nota_media|floatformat:1 }} ★</span>
+                {% endif %}
+            </h4>
+        </div>
+        <div class="card-body">
+            {% for avaliacao in avaliacoes %}
+                <div class="border-bottom pb-3 mb-3">
+                    <strong>{{ avaliacao.reserva.hospede.get_full_name|default:avaliacao.reserva.hospede.username }}</strong>
+                    <span class="text-muted ms-2">{{ avaliacao.data_avaliacao|date:"d/m/Y" }}</span>
+                    <p class="mt-1">Nota: {{ avaliacao.nota }} de 5 ★</p>
+                    <p class="mb-0"><em>"{{ avaliacao.comentario }}"</em></p>
+                </div>
+            {% empty %}
+                <p>Este imóvel ainda não recebeu avaliações.</p>
+            {% endfor %}
+        </div>
     </div>
 </div>
-
 {% endblock content %}
+
+
+{% block scripts %}
+    {{ block.super }}
+
+    {% if user == apartamento.proprietario %}
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js'></script>
+
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        var calendarioEl = document.getElementById('calendario-reservas');
+        var calendario = new FullCalendar.Calendar(calendarioEl, {
+          initialView: 'dayGridMonth', // Visão mensal
+          locale: 'pt-br', // Adiciona tradução para português
+          buttonText: { // Traduz os botões
+             today:    'hoje',
+             month:    'mês',
+             week:     'semana',
+             day:      'dia',
+             list:     'lista'
+          },
+          headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek'
+          },
+          // 3. Busca os eventos da nossa nova URL
+          events: "{% url 'apartamentos:reserva_calendario_data' pk_apartamento=apartamento.pk %}"
+        });
+        calendario.render();
+      });
+    </script>
+    {% endif %}
+{% endblock scripts %}

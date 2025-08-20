@@ -3,7 +3,7 @@ from .views import (
     ApartamentoListView, ApartamentoDetailView, PredioListView, PredioDetailView,
     SignUpView, perfil_view, PainelProprietarioView, MinhasReservasListView,
     PredioCreateView, ApartamentoCreateView, ApartamentoUpdateView, ApartamentoDeleteView,
-    aprovar_reserva, recusar_reserva, ReservaDetailView,
+    aprovar_reserva, recusar_reserva, ReservaDetailView, reserva_calendario_data
 )
 
 app_name = 'apartamentos'
@@ -28,4 +28,8 @@ urlpatterns = [
     path('reserva/<int:pk>/aprovar/', aprovar_reserva, name='aprovar_reserva'),
     path('reserva/<int:pk>/recusar/', recusar_reserva, name='recusar_reserva'),
     path('reserva/<int:pk>/', ReservaDetailView.as_view(), name='detalhe_reserva'),
+
+    path('apartamento/<int:pk_apartamento>/calendario-data/', reserva_calendario_data, name='reserva_calendario_data'),
+
+    path('apartamento/<int:pk>/editar/', ApartamentoUpdateView.as_view(), name='editar_apartamento'),
 ]

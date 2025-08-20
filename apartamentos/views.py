@@ -1,3 +1,4 @@
+from django.http import HttpResponse, JsonResponse
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.shortcuts import render, redirect, get_object_or_404
@@ -431,3 +432,33 @@ def recusar_reserva(request, pk):
         return JsonResponse({'status': 'success', 'message': 'Reserva recusada.'})
     except PermissionError as e:
         return JsonResponse({'status': 'error', 'message': str(e)}, status=403)
+
+
+@login_required
+def reserva_calendario_data(request, pk_apartamento):
+    """
+    Esta view serve os dados das reservas no formato JSON
+    que a biblioteca FullCalendar espera.
+    """
+    apartamento = get_object_or_404(Apartamento, pk=pk_apartamento)
+
+    # Apenas o proprietário do apartamento pode ver os dados das reservas
+    if request.user != apartamento.proprietario:
+        return JsonResponse({'error': 'Não autorizado'}, status=403)
+
+    reservas = Reserva.objects.filter(
+        apartamento=apartamento,
+        status__in=[Reserva.StatusReserva.PENDENTE, Reserva.StatusReserva.CONFIRMADA]
+    )
+
+    eventos = []
+    for reserva in reservas:
+        eventos.append({
+            'title': f"Hóspede: {reserva.hospede.username}",
+            'start': reserva.data_checkin.isoformat(),
+            'end': reserva.data_checkout.isoformat(),
+            'color': 'orange' if reserva.status == Reserva.StatusReserva.PENDENTE else 'green'
+        })
+
+    return JsonResponse(eventos, safe=False)
+
