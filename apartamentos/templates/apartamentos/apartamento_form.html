@@ -18,11 +18,45 @@
     <hr>
     <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
-        {{ form.as_p }}
+
+        <div class="mb-3">{{ form.titulo.label_tag }} {{ form.titulo }}</div>
+        <div class="mb-3">{{ form.descricao.label_tag }} {{ form.descricao }}</div>
+        <div class="row">
+            <div class="col-md-6 mb-3">{{ form.numero_quartos.label_tag }} {{ form.numero_quartos }}</div>
+            <div class="col-md-6 mb-3">{{ form.numero_banheiros.label_tag }} {{ form.numero_banheiros }}</div>
+        </div>
+        <div class="row">
+            <div class="col-md-4 mb-3">{{ form.area_m2.label_tag }} {{ form.area_m2 }}</div>
+            <div class="col-md-4 mb-3">{{ form.preco_diaria.label_tag }} {{ form.preco_diaria }}</div>
+            <div class="col-md-4 mb-3">{{ form.preco_mensal.label_tag }} {{ form.preco_mensal }}</div>
+        </div>
+        <div class="mb-3">{{ form.foto_principal.label_tag }} {{ form.foto_principal }}</div>
+        <div class="form-check mb-3">{{ form.disponivel }} {{ form.disponivel.label_tag }}</div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">{{ form.comodidades.label }}</label>
+            <div class="card card-body" style="max-height: 200px; overflow-y: auto;">
+                <div class="row">
+                    {% for choice in form.comodidades %}
+                    <div class="col-md-6">
+                        <div class="form-check">
+                            {{ choice.tag }}
+                            <label class="form-check-label" for="{{ choice.id_for_label }}">
+                                {{ choice.choice_label }}
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <small class="form-text text-muted">Para adicionar preços às comodidades, salve o apartamento primeiro e edite-o no painel de admin.</small>
+        </div>
+
         <button type="submit" class="btn btn-success">Salvar Apartamento</button>
+
+        {% if object %}
         <hr>
         <h4 class="mt-4 mb-3">Fotos do Apartamento</h4>
-
         {{ formset.management_form }}
         {% for form_foto in formset %}
             <div class="row align-items-center mb-3 border-bottom pb-3">
@@ -36,6 +70,7 @@
                 {% endif %}
             </div>
         {% endfor %}
+        {% endif %}
 
         <button type="submit" class="btn btn-primary mt-3">Salvar Alterações</button>
     </form>

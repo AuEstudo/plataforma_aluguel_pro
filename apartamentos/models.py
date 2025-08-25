@@ -9,6 +9,28 @@ class Comodidade(models.Model):
         verbose_name = _("Comodidade"); verbose_name_plural = _("Comodidades"); ordering = ['nome']
     def __str__(self): return self.nome
 
+# NOVO MODELO: Tabela intermediária para conectar Apartamento e Comodidade
+class ApartamentoComodidade(models.Model):
+    apartamento = models.ForeignKey('Apartamento', on_delete=models.CASCADE)
+    comodidade = models.ForeignKey(Comodidade, on_delete=models.CASCADE)
+    # NOVO CAMPO: Preço adicional para esta comodidade neste apartamento específico
+    preco_adicional = models.DecimalField(
+        _("preço adicional (R$)"),
+        max_digits=10,
+        decimal_places=2,
+        default=0.00,
+        help_text=_("Custo extra por diária para esta comodidade, se houver.")
+    )
+
+    class Meta:
+        verbose_name = _("Comodidade do Apartamento")
+        verbose_name_plural = _("Comodidades do Apartamento")
+        # Garante que um apartamento não possa ter a mesma comodidade duas vezes
+        unique_together = ('apartamento', 'comodidade')
+
+    def __str__(self):
+        return f"{self.comodidade.nome} em {self.apartamento.titulo} (+ R$ {self.preco_adicional})"
+
 class Predio(models.Model):
     proprietario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='predios', verbose_name=_("proprietário"))
     nome = models.CharField(_("nome do prédio/condomínio"), max_length=255)
@@ -31,9 +53,24 @@ class Apartamento(models.Model):
     numero_banheiros = models.PositiveIntegerField(_("número de banheiros"), default=1)
     area_m2 = models.DecimalField(_("área (m²)"), max_digits=7, decimal_places=2)
     preco_diaria = models.DecimalField(_("preço da diária (R$)"), max_digits=10, decimal_places=2)
+    # NOVO CAMPO: Preço Mensal
+    preco_mensal = models.DecimalField(
+        _("preço do mês (R$)"),
+        max_digits=10,
+        decimal_places=2,
+        blank=True, # Opcional
+        null=True,  # Opcional
+        help_text=_("Deixe em branco se não oferecer aluguel mensal.")
+    )
     foto_principal = models.ImageField(_("foto principal da unidade"), upload_to='apartamentos/fotos_principais/%Y/%m/%d/', blank=True, null=True)
     disponivel = models.BooleanField(_("disponível para aluguel?"), default=True)
-    comodidades = models.ManyToManyField(Comodidade, blank=True, verbose_name=_("comodidades da unidade"))
+    # CAMPO ATUALIZADO: Agora usa o modelo intermediário 'ApartamentoComodidade'
+    comodidades = models.ManyToManyField(
+        Comodidade,
+        through=ApartamentoComodidade, # Define o modelo de conexão
+        blank=True,
+        verbose_name=_("comodidades da unidade")
+    )
     data_cadastro = models.DateTimeField(_("data de cadastro"), auto_now_add=True)
     data_atualizacao = models.DateTimeField(_("data de atualização"), auto_now=True)
     class Meta:
@@ -41,27 +78,14 @@ class Apartamento(models.Model):
     def __str__(self): return f"{self.predio.nome} - {self.titulo}"
 
     def get_foto_principal(self):
-        """
-        Este metodo encontra a foto principal para o anúncio.
-        A ordem de prioridade é:
-        1. Uma foto da nova galeria marcada como 'principal'.
-        2. Se não houver, a primeira foto da nova galeria.
-        3. Se não houver, a foto do campo antigo 'foto_principal'.
-        4. Se não houver nenhuma, retorna None.
-        """
         foto_marcada_como_principal = self.fotos.filter(principal=True).first()
-        if foto_marcada_como_principal:
-            return foto_marcada_como_principal.imagem.url
-
+        if foto_marcada_como_principal: return foto_marcada_como_principal.imagem.url
         primeira_foto_da_galeria = self.fotos.first()
-        if primeira_foto_da_galeria:
-            return primeira_foto_da_galeria.imagem.url
+        if primeira_foto_da_galeria: return primeira_foto_da_galeria.imagem.url
+        if self.foto_principal: return self.foto_principal.url
+        return None
 
-        if self.foto_principal:
-            return self.foto_principal.url
-
-        return None  # Retorna None se não houver foto alguma
-
+# ... (Restante dos modelos Perfil, Reserva, Avaliacao, FotoApartamento - sem alterações) ...
 class Perfil(models.Model):
     class CargoUsuario(models.TextChoices):
         CLIENTE = 'CLIENTE', _('Cliente')
@@ -93,40 +117,16 @@ class Reserva(models.Model):
     def __str__(self): return f"Reserva de {self.apartamento} por {self.hospede.username}"
 
 class Avaliacao(models.Model):
-    # A avaliação está ligada a uma única reserva. OneToOneField garante que cada reserva
-    # só possa ter uma única avaliação, prevenindo spam.
-    reserva = models.OneToOneField(
-        Reserva,
-        on_delete=models.CASCADE,
-        related_name='avaliacao'
-    )
-    nota = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)],
-        help_text="Nota de 1 a 5"
-    )
-    comentario = models.TextField(
-        max_length=500,
-        blank=True,
-        null=True,
-        help_text="Deixe seu comentário sobre a estadia."
-    )
+    reserva = models.OneToOneField(Reserva, on_delete=models.CASCADE, related_name='avaliacao')
+    nota = models.IntegerField(validators=[MinValueValidator(1), MaxValueValidator(5)], help_text="Nota de 1 a 5")
+    comentario = models.TextField(max_length=500, blank=True, null=True, help_text="Deixe seu comentário sobre a estadia.")
     data_avaliacao = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f'Avaliação de {self.reserva.hospede.username} para {self.reserva.apartamento.titulo}'
+    def __str__(self): return f'Avaliação de {self.reserva.hospede.username} para {self.reserva.apartamento.titulo}'
 
 class FotoApartamento(models.Model):
-    apartamento = models.ForeignKey(
-        Apartamento,
-        on_delete=models.CASCADE,
-        related_name='fotos'
-    )
+    apartamento = models.ForeignKey(Apartamento, on_delete=models.CASCADE, related_name='fotos')
     imagem = models.ImageField(upload_to='apartamentos/fotos/')
-    # Este campo nos permite destacar uma foto como a principal do anúncio.
     principal = models.BooleanField(default=False)
-
     class Meta:
-        ordering = ['-principal'] # Garante que a foto principal apareça primeiro
-
-    def __str__(self):
-        return f"Foto de {self.apartamento.titulo}"
+        ordering = ['-principal']
+    def __str__(self): return f"Foto de {self.apartamento.titulo}"

@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import User
-from .models import Comodidade, Predio, Apartamento, FotoApartamento, Perfil, Reserva
+from .models import Comodidade, Predio, Apartamento, FotoApartamento, Perfil, Reserva, ApartamentoComodidade
 
 class PerfilInline(admin.StackedInline):
     model = Perfil; can_delete = False; verbose_name_plural = 'Perfil do Usuário'; fk_name = 'usuario'
@@ -26,9 +26,20 @@ class PredioAdmin(admin.ModelAdmin):
 class FotoApartamentoInline(admin.TabularInline):
     model = FotoApartamento; extra = 1
 
+# NOVO INLINE: Para gerenciar comodidades e seus preços
+class ApartamentoComodidadeInline(admin.TabularInline):
+    model = ApartamentoComodidade
+    extra = 1 # Quantos campos extras mostrar
+    autocomplete_fields = ['comodidade']
+
 @admin.register(Apartamento)
 class ApartamentoAdmin(admin.ModelAdmin):
-    list_display = ('titulo', 'predio', 'proprietario', 'preco_diaria', 'disponivel'); list_filter = ('disponivel', 'predio__cidade', 'proprietario'); search_fields = ('titulo', 'predio__nome'); autocomplete_fields = ['predio', 'proprietario']; filter_horizontal = ('comodidades',); inlines = [FotoApartamentoInline]
+    list_display = ('titulo', 'predio', 'proprietario', 'preco_diaria', 'disponivel')
+    list_filter = ('disponivel', 'predio__cidade', 'proprietario')
+    search_fields = ('titulo', 'predio__nome')
+    autocomplete_fields = ['predio', 'proprietario']
+    # MUDANÇA: Substituímos 'filter_horizontal' pelo novo inline
+    inlines = [ApartamentoComodidadeInline, FotoApartamentoInline]
 
 @admin.register(Reserva)
 class ReservaAdmin(admin.ModelAdmin):

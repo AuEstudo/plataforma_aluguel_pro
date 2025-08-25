@@ -21,13 +21,13 @@ from .filters import ApartamentoFilter
 from .models import Apartamento, Predio, Reserva, Avaliacao, FotoApartamento, Perfil
 from .forms import (
     CustomUserCreationForm, PredioForm, ApartamentoForm,
-    UserUpdateForm, PerfilUpdateForm, ReservaForm, ApartamentoSearchForm,
+    UserUpdateForm, PerfilUpdateForm, ReservaForm,
     AvaliacaoForm
 )
 
 
-class HomePageView(TemplateView):
-    template_name = 'homepage.html'
+# ... (HomePageView, SignUpView, perfil_view, ApartamentoListView, PredioListView, PredioDetailView, ApartamentoDetailView, ReservaDetailView, PainelProprietarioView, MinhasReservasListView, PredioCreateView - sem alterações) ...
+class HomePageView(TemplateView): template_name = 'homepage.html'
 
 
 class SignUpView(CreateView):
@@ -36,31 +36,23 @@ class SignUpView(CreateView):
     template_name = 'registration/signup.html'
 
     def form_valid(self, form):
-        # A lógica padrão do CreateView salva o form e cria o usuário (self.object)
         response = super().form_valid(form)
-
         user = self.object
         papel_escolhido = form.cleaned_data.get('papel')
-
         try:
             if papel_escolhido == 'CLIENTE':
                 grupo = Group.objects.get(name='Clientes')
                 user.groups.add(grupo)
-                # Mantém o Perfil consistente com o grupo
                 user.perfil.cargo = Perfil.CargoUsuario.CLIENTE
-
             elif papel_escolhido == 'PROPRIETARIO':
                 grupo = Group.objects.get(name='Proprietários')
                 user.groups.add(grupo)
-                # Mantém o Perfil consistente com o grupo
                 user.perfil.cargo = Perfil.CargoUsuario.PROPRIETARIO
-
-            user.perfil.save()  # Salva a alteração do cargo no perfil
-
+            user.perfil.save()
         except Group.DoesNotExist:
             pass
-
         return response
+
 
 @login_required
 def perfil_view(request):
@@ -79,92 +71,67 @@ def perfil_view(request):
     return render(request, 'apartamentos/perfil_edit.html', context)
 
 
-# apartamentos/views.py
 class ApartamentoListView(View):
     template_name = 'apartamentos/apartamento_list.html'
 
     def get(self, request, *args, **kwargs):
         base_queryset = Apartamento.objects.filter(disponivel=True).select_related('predio')
-
         filterset = ApartamentoFilter(request.GET, queryset=base_queryset)
         queryset_filtrado = filterset.qs
-
-        # Lógica de filtro por data
         data_checkin_str = request.GET.get('data_checkin', '')
         data_checkout_str = request.GET.get('data_checkout', '')
         if data_checkin_str and data_checkout_str:
-            # ... (a lógica de filtro de data continua a mesma, sem alterações) ...
             try:
                 data_checkin = timezone.datetime.strptime(data_checkin_str, '%Y-%m-%d').date()
                 data_checkout = timezone.datetime.strptime(data_checkout_str, '%Y-%m-%d').date()
                 status_bloqueantes = [Reserva.StatusReserva.CONFIRMADA, Reserva.StatusReserva.PENDENTE]
-                apartamentos_indisponiveis_ids = Reserva.objects.filter(
-                    status__in=status_bloqueantes,
-                    data_checkin__lte=data_checkout,
-                    data_checkout__gte=data_checkin
-                ).values_list('apartamento_id', flat=True)
+                apartamentos_indisponiveis_ids = Reserva.objects.filter(status__in=status_bloqueantes,
+                                                                        data_checkin__lte=data_checkout,
+                                                                        data_checkout__gte=data_checkin).values_list(
+                    'apartamento_id', flat=True)
                 queryset_filtrado = queryset_filtrado.exclude(pk__in=apartamentos_indisponiveis_ids)
             except ValueError:
                 pass
-
-        # A consulta final, limpa e estável
         final_queryset = queryset_filtrado.distinct().order_by('-data_cadastro')
-
-        # Paginação
         paginator = Paginator(final_queryset, 9)
         page_number = request.GET.get('page')
         try:
             page_obj = paginator.page(page_number)
         except (PageNotAnInteger, EmptyPage):
             page_obj = paginator.page(1)
-
-        # Contexto
-        context = {
-            'apartamentos': page_obj.object_list,
-            'page_obj': page_obj,
-            'is_paginated': page_obj.has_other_pages(),
-            'filter': filterset,
-            'cidades_disponiveis': Predio.objects.order_by('cidade').values_list('cidade', flat=True).distinct(),
-            'is_search': bool(request.GET)
-        }
-
+        context = {'apartamentos': page_obj.object_list, 'page_obj': page_obj,
+                   'is_paginated': page_obj.has_other_pages(), 'filter': filterset,
+                   'cidades_disponiveis': Predio.objects.order_by('cidade').values_list('cidade', flat=True).distinct(),
+                   'is_search': bool(request.GET)}
         return render(request, self.template_name, context)
 
+
 class PredioListView(ListView):
-    model = Predio
-    template_name = 'apartamentos/predio_list.html'
-    context_object_name = 'predios'
+    model = Predio;
+    template_name = 'apartamentos/predio_list.html';
+    context_object_name = 'predios';
     paginate_by = 10
 
     def get(self, request, *args, **kwargs):
-        """
-        Adiciona uma verificação explícita para o caso de a lista de prédios
-        estar vazia, evitando o erro EmptyPage.
-        """
         queryset = self.get_queryset()
-
         if not queryset.exists():
-            # Se NÃO existir nenhum prédio, nós pulamos a lógica de paginação
-            # e renderizamos o template com um contexto seguro.
             context = {'predios': []}
             return render(request, self.template_name, context)
-
-        # Se EXISTEM prédios, deixamos o comportamento normal da ListView acontecer.
         return super().get(request, *args, **kwargs)
 
+
 class PredioDetailView(DetailView):
-    model = Predio
-    template_name = 'apartamentos/predio_detail.html'
+    model = Predio;
+    template_name = 'apartamentos/predio_detail.html';
     context_object_name = 'predio'
 
-    def get_queryset(self):
-        return super().get_queryset().prefetch_related('apartamentos__proprietario')
+    def get_queryset(self): return super().get_queryset().prefetch_related('apartamentos__proprietario')
 
 
 class ApartamentoDetailView(FormMixin, DetailView):
-    model = Apartamento
-    template_name = 'apartamentos/apartamento_detail.html'
-    context_object_name = 'apartamento'
+    model = Apartamento;
+    template_name = 'apartamentos/apartamento_detail.html';
+    context_object_name = 'apartamento';
     form_class = ReservaForm
 
     def get_success_url(self):
@@ -173,19 +140,10 @@ class ApartamentoDetailView(FormMixin, DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['form'] = self.get_form()
-
         status_bloqueantes = [Reserva.StatusReserva.CONFIRMADA, Reserva.StatusReserva.PENDENTE]
-
-        # Adicionamos o filtro 'data_checkout__gte=timezone.localdate()'
-        # gte = Greater Than or Equal (maior ou igual a)
-        # Isso garante que só pegamos reservas que terminam hoje ou no futuro.
-        context['datas_ocupadas'] = self.object.reservas.filter(
-            status__in=status_bloqueantes,
-            data_checkout__gte=timezone.localdate()
-        ).order_by('data_checkin')
-        # --- FIM DA MELHORIA ---
-
-        # Lógica para buscar e exibir avaliações
+        context['datas_ocupadas'] = self.object.reservas.filter(status__in=status_bloqueantes,
+                                                                data_checkout__gte=timezone.localdate()).order_by(
+            'data_checkin')
         apartamento = self.get_object()
         avaliacoes = Avaliacao.objects.filter(reserva__apartamento=apartamento).order_by('-data_avaliacao')
         nota_media = avaliacoes.aggregate(Avg('nota'))['nota__avg']
@@ -212,31 +170,16 @@ class ApartamentoDetailView(FormMixin, DetailView):
         reserva.hospede = self.request.user
         reserva.save()
         messages.success(self.request, "Sua solicitação de reserva foi enviada com sucesso!")
-
-        # --- LÓGICA DE ENVIO DE E-MAIL ADICIONADA ---
         try:
             proprietario = self.object.proprietario
-            contexto_email = {
-                'proprietario': proprietario,
-                'hospede': reserva.hospede,
-                'apartamento': self.object,
-                'reserva': reserva,
-            }
-
-            # Renderiza o template de e-mail para uma string
+            contexto_email = {'proprietario': proprietario, 'hospede': reserva.hospede, 'apartamento': self.object,
+                              'reserva': reserva}
             corpo_email = render_to_string('emails/notificacao_nova_reserva.txt', contexto_email)
-
-            send_mail(
-                subject=f'Nova Solicitação de Reserva para "{self.object.titulo}"',
-                message=corpo_email,
-                from_email='nao-responda@aluguelpro.com',  # E-mail remetente (pode ser qualquer um em desenvolvimento)
-                recipient_list=[proprietario.email],  # Lista de destinatários
-                fail_silently=False,  # Se der erro no envio, queremos ver o erro (em produção pode ser True)
-            )
+            send_mail(subject=f'Nova Solicitação de Reserva para "{self.object.titulo}"', message=corpo_email,
+                      from_email='nao-responda@aluguelpro.com', recipient_list=[proprietario.email],
+                      fail_silently=False)
         except Exception as e:
-            # Se o e-mail falhar, não quebramos o site, apenas registramos o erro no console.
             print(f"ERRO ao enviar e-mail de notificação: {e}")
-
         return super().form_valid(form)
 
     def get_queryset(self):
@@ -244,8 +187,8 @@ class ApartamentoDetailView(FormMixin, DetailView):
 
 
 class ReservaDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
-    model = Reserva
-    template_name = 'apartamentos/reserva_detail.html'
+    model = Reserva;
+    template_name = 'apartamentos/reserva_detail.html';
     context_object_name = 'reserva'
 
     def test_func(self):
@@ -256,22 +199,16 @@ class ReservaDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
         context = super().get_context_data(**kwargs)
         reserva = self.get_object()
         pode_avaliar = (
-                reserva.status == Reserva.StatusReserva.CONFIRMADA and
-                reserva.data_checkout < timezone.localdate() and
-                self.request.user == reserva.hospede and
-                not hasattr(reserva, 'avaliacao')
-        )
-        if pode_avaliar:
-            context['form_avaliacao'] = AvaliacaoForm()
+                    reserva.status == Reserva.StatusReserva.CONFIRMADA and reserva.data_checkout < timezone.localdate() and self.request.user == reserva.hospede and not hasattr(
+                reserva, 'avaliacao'))
+        if pode_avaliar: context['form_avaliacao'] = AvaliacaoForm()
         return context
 
     def post(self, request, *args, **kwargs):
         reserva = self.get_object()
-        # Apenas hóspedes podem postar avaliações
         if self.request.user != reserva.hospede:
             messages.error(request, "Você não tem permissão para avaliar esta reserva.")
             return redirect('apartamentos:detalhe_reserva', pk=reserva.pk)
-
         form = AvaliacaoForm(request.POST)
         if form.is_valid():
             avaliacao = form.save(commit=False)
@@ -279,7 +216,6 @@ class ReservaDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
             avaliacao.save()
             messages.success(request, 'Sua avaliação foi enviada com sucesso. Obrigado!')
             return redirect('apartamentos:detalhe_reserva', pk=reserva.pk)
-
         context = self.get_context_data()
         context['form_avaliacao'] = form
         return self.render_to_response(context)
@@ -290,7 +226,7 @@ class ReservaDetailView(LoginRequiredMixin, UserPassesTestMixin, DetailView):
 
 
 class PainelProprietarioView(PermissionRequiredMixin, TemplateView):
-    template_name = 'apartamentos/painel_proprietario.html'
+    template_name = 'apartamentos/painel_proprietario.html';
     permission_required = 'apartamentos.add_apartamento'
 
     def get_context_data(self, **kwargs):
@@ -308,20 +244,19 @@ class PainelProprietarioView(PermissionRequiredMixin, TemplateView):
 
 
 class MinhasReservasListView(LoginRequiredMixin, ListView):
-    model = Reserva
-    template_name = 'apartamentos/minhas_reservas.html'
-    context_object_name = 'reservas'
+    model = Reserva;
+    template_name = 'apartamentos/minhas_reservas.html';
+    context_object_name = 'reservas';
     paginate_by = 10
 
-    def get_queryset(self):
-        return Reserva.objects.filter(hospede=self.request.user).select_related('apartamento__predio').order_by(
-            '-data_checkin')
+    def get_queryset(self): return Reserva.objects.filter(hospede=self.request.user).select_related(
+        'apartamento__predio').order_by('-data_checkin')
 
 
 class PredioCreateView(PermissionRequiredMixin, CreateView):
-    model = Predio
-    form_class = PredioForm
-    template_name = 'apartamentos/predio_form.html'
+    model = Predio;
+    form_class = PredioForm;
+    template_name = 'apartamentos/predio_form.html';
     permission_required = 'apartamentos.add_predio'
 
     def form_valid(self, form):
@@ -334,9 +269,9 @@ class PredioCreateView(PermissionRequiredMixin, CreateView):
 
 
 class ApartamentoCreateView(PermissionRequiredMixin, CreateView):
-    model = Apartamento
-    form_class = ApartamentoForm
-    template_name = 'apartamentos/apartamento_form.html'
+    model = Apartamento;
+    form_class = ApartamentoForm;
+    template_name = 'apartamentos/apartamento_form.html';
     permission_required = 'apartamentos.add_apartamento'
 
     def get_context_data(self, **kwargs):
@@ -348,55 +283,65 @@ class ApartamentoCreateView(PermissionRequiredMixin, CreateView):
         predio = get_object_or_404(Predio, pk=self.kwargs['pk_predio'])
         form.instance.predio = predio
         form.instance.proprietario = self.request.user
-        return super().form_valid(form)
+        apartamento = form.save()  # Salva o apartamento primeiro
+        # Lógica para salvar comodidades (sem preço por enquanto)
+        comodidades_selecionadas = form.cleaned_data.get('comodidades')
+        apartamento.comodidades.set(comodidades_selecionadas)
+        return redirect(self.get_success_url())
 
     def get_success_url(self): return reverse_lazy('apartamentos:detalhe_predio',
                                                    kwargs={'pk': self.kwargs['pk_predio']})
 
 
 class ApartamentoUpdateView(PermissionRequiredMixin, UserPassesTestMixin, UpdateView):
-    model = Apartamento
-    form_class = ApartamentoForm
-    template_name = 'apartamentos/apartamento_form.html'
+    model = Apartamento;
+    form_class = ApartamentoForm;
+    template_name = 'apartamentos/apartamento_form.html';
     permission_required = 'apartamentos.change_apartamento'
 
-    def test_func(self): return self.request.user == self.get_object().proprietario
+    def test_func(self):
+        return self.request.user == self.get_object().proprietario
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Cria a fábrica de formsets para o modelo FotoApartamento
-        FotoFormSet = inlineformset_factory(
-            Apartamento,
-            FotoApartamento,
-            fields=('imagem', 'principal'),
-            extra=3, # Mostra 3 formulários extras para novas fotos
-            can_delete=True # Permite deletar fotos existentes
-        )
+        FotoFormSet = inlineformset_factory(Apartamento, FotoApartamento, fields=('imagem', 'principal'), extra=3,
+                                            can_delete=True)
         if self.request.POST:
             context['formset'] = FotoFormSet(self.request.POST, self.request.FILES, instance=self.object)
         else:
             context['formset'] = FotoFormSet(instance=self.object)
         return context
 
+    # MUDANÇA: Sobrescrevemos o form_valid para lidar com as comodidades
     def form_valid(self, form):
         context = self.get_context_data()
         formset = context['formset']
-        if form.is_valid() and formset.is_valid():
-            self.object = form.save()
-            formset.instance = self.object
-            formset.save()
-            messages.success(self.request, "Apartamento atualizado com sucesso!")
-            return redirect(self.get_success_url())
-        else:
+        if not (form.is_valid() and formset.is_valid()):
             return self.render_to_response(self.get_context_data(form=form))
 
-    def get_success_url(self): return reverse_lazy('apartamentos:detalhe_apartamento', kwargs={'pk': self.object.pk})
+        self.object = form.save(commit=False)  # Não salva o apartamento ainda
+        # Lógica de salvamento das fotos
+        formset.instance = self.object
+        formset.save()
+
+        # Lógica de salvamento das comodidades
+        # commit=False não salva as relações ManyToMany, então fazemos manualmente
+        self.object.save()  # Agora salva o apartamento
+        comodidades_selecionadas = form.cleaned_data.get('comodidades')
+        # .set() é a forma mais fácil de atualizar uma relação ManyToMany
+        self.object.comodidades.set(comodidades_selecionadas)
+
+        messages.success(self.request, "Apartamento atualizado com sucesso!")
+        return redirect(self.get_success_url())
+
+    def get_success_url(self):
+        return reverse_lazy('apartamentos:detalhe_apartamento', kwargs={'pk': self.object.pk})
 
 
 class ApartamentoDeleteView(PermissionRequiredMixin, UserPassesTestMixin, DeleteView):
-    model = Apartamento
-    template_name = 'apartamentos/apartamento_confirm_delete.html'
-    context_object_name = 'apartamento'
+    model = Apartamento;
+    template_name = 'apartamentos/apartamento_confirm_delete.html';
+    context_object_name = 'apartamento';
     permission_required = 'apartamentos.delete_apartamento'
 
     def test_func(self): return self.request.user == self.get_object().proprietario
@@ -407,15 +352,13 @@ class ApartamentoDeleteView(PermissionRequiredMixin, UserPassesTestMixin, Delete
         messages.success(self.request, f"O anúncio '{self.object.titulo}' foi excluído com sucesso.")
         return super().form_valid(form)
 
-# Adicione JsonResponse à esta linha de import
-from django.http import HttpResponse, JsonResponse
 
+# ... (aprovar_reserva, recusar_reserva, reserva_calendario_data - sem alterações) ...
 @require_POST
 @login_required
 def aprovar_reserva(request, pk):
     reserva = get_object_or_404(Reserva, pk=pk)
     try:
-        # CORREÇÃO: Chamamos a função diretamente, sem o prefixo 'services.'
         aprovar_reserva_service(reserva=reserva, usuario=request.user)
         return JsonResponse({'status': 'success', 'message': 'Reserva aprovada com sucesso!'})
     except PermissionError as e:
@@ -427,7 +370,6 @@ def aprovar_reserva(request, pk):
 def recusar_reserva(request, pk):
     reserva = get_object_or_404(Reserva, pk=pk)
     try:
-        # CORREÇÃO: Chamamos a função diretamente, sem o prefixo 'services.'
         recusar_reserva_service(reserva=reserva, usuario=request.user)
         return JsonResponse({'status': 'success', 'message': 'Reserva recusada.'})
     except PermissionError as e:
@@ -436,29 +378,13 @@ def recusar_reserva(request, pk):
 
 @login_required
 def reserva_calendario_data(request, pk_apartamento):
-    """
-    Esta view serve os dados das reservas no formato JSON
-    que a biblioteca FullCalendar espera.
-    """
     apartamento = get_object_or_404(Apartamento, pk=pk_apartamento)
-
-    # Apenas o proprietário do apartamento pode ver os dados das reservas
-    if request.user != apartamento.proprietario:
-        return JsonResponse({'error': 'Não autorizado'}, status=403)
-
-    reservas = Reserva.objects.filter(
-        apartamento=apartamento,
-        status__in=[Reserva.StatusReserva.PENDENTE, Reserva.StatusReserva.CONFIRMADA]
-    )
-
+    if request.user != apartamento.proprietario: return JsonResponse({'error': 'Não autorizado'}, status=403)
+    reservas = Reserva.objects.filter(apartamento=apartamento,
+                                      status__in=[Reserva.StatusReserva.PENDENTE, Reserva.StatusReserva.CONFIRMADA])
     eventos = []
     for reserva in reservas:
-        eventos.append({
-            'title': f"Hóspede: {reserva.hospede.username}",
-            'start': reserva.data_checkin.isoformat(),
-            'end': reserva.data_checkout.isoformat(),
-            'color': 'orange' if reserva.status == Reserva.StatusReserva.PENDENTE else 'green'
-        })
-
+        eventos.append({'title': f"Hóspede: {reserva.hospede.username}", 'start': reserva.data_checkin.isoformat(),
+                        'end': reserva.data_checkout.isoformat(),
+                        'color': 'orange' if reserva.status == Reserva.StatusReserva.PENDENTE else 'green'})
     return JsonResponse(eventos, safe=False)
-
